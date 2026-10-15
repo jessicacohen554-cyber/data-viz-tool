@@ -74,28 +74,43 @@ function spawn(): WorkerLike {
   return new Worker(new URL('../../workers/data.worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike;
 }
 
-/** Create a client bound to a fresh data worker (or the supplied stand-in). */
-export function createDataClient(worker: WorkerLike = spawn()): DataClient {
+/**
+ * Create a client bound to a data worker (or the supplied stand-in). The real
+ * worker is spawned lazily on the first request, so importing a store that
+ * holds a client never touches `Worker` (Node tests, SSR-less builds).
+ */
+export function createDataClient(stub?: WorkerLike): DataClient {
   let nextId = 1;
   let latestQueryId = 0;
   const pending = new Map<number, Pending>();
   const cache = new Map<string, QueryResult>();
   let terminated = false;
+  let worker: WorkerLike | undefined = stub;
 
-  worker.onmessage = (ev) => {
-    const reply = ev.data;
-    const p = pending.get(reply.id);
-    if (!p) return;
-    if (reply.type === 'progress') { p.onProgress?.(reply.progress); return; }
-    pending.delete(reply.id);
-    if (reply.type === 'error') { p.reject(new DataError(reply.message, reply.code)); return; }
-    p.resolve(reply);
-  };
-  if ('onerror' in worker) {
-    worker.onerror = (ev) => {
-      const err = new DataError(ev instanceof Error ? ev.message : 'worker crashed', 'internal');
-      for (const [id, p] of pending) { pending.delete(id); p.reject(err); }
+  function attach(w: WorkerLike): WorkerLike {
+    w.onmessage = (ev) => {
+      const reply = ev.data;
+      const p = pending.get(reply.id);
+      if (!p) return;
+      if (reply.type === 'progress') { p.onProgress?.(reply.progress); return; }
+      pending.delete(reply.id);
+      if (reply.type === 'error') { p.reject(new DataError(reply.message, reply.code)); return; }
+      p.resolve(reply);
     };
+    if ('onerror' in w) {
+      w.onerror = (ev) => {
+        const err = new DataError(ev instanceof Error ? ev.message : 'worker crashed', 'internal');
+        for (const [id, p] of pending) { pending.delete(id); p.reject(err); }
+      };
+    }
+    return w;
+  }
+  if (worker) attach(worker);
+
+  /** The worker, spawned and wired on first use. */
+  function ensureWorker(): WorkerLike {
+    if (!worker) worker = attach(spawn());
+    return worker;
   }
 
   function send(build: (id: number) => WorkerRequest, onProgress?: (p: LoadProgress) => void): Promise<WorkerReply> {
@@ -103,7 +118,7 @@ export function createDataClient(worker: WorkerLike = spawn()): DataClient {
     const id = nextId++;
     return new Promise<WorkerReply>((resolve, reject) => {
       pending.set(id, { resolve, reject, onProgress });
-      worker.postMessage(build(id));
+      ensureWorker().postMessage(build(id));
     });
   }
 
@@ -171,7 +186,7 @@ export function createDataClient(worker: WorkerLike = spawn()): DataClient {
 
     terminate() {
       terminated = true;
-      worker.terminate();
+      worker?.terminate();
       const err = new DataError('client terminated', 'internal');
       for (const [id, p] of pending) { pending.delete(id); p.reject(err); }
       cache.clear();

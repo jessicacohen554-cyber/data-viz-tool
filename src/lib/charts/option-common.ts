@@ -273,9 +273,12 @@ export function seriesColors(ctx: BuildContext, names: string[]): string[] {
   const enc = colorEncoding(ctx);
   const theme = themeOf(ctx);
   const overrides = ctx.spec.palette.overrides ?? {};
-  if (enc.kind === 'categorical') return names.map((n) => overrides[n] ?? enc.map[n] ?? theme.border);
+  const byPosition = (n: string, i: number) => overrides[n] ?? FALLBACK_CATEGORICAL[i] ?? theme.border;
+  // A name the palette map does not know (a series synthesised by a transform) takes the
+  // fixed-order fallback for its position; beyond the set it is `theme.border`, never a cycle.
+  if (enc.kind === 'categorical') return names.map((n, i) => overrides[n] ?? enc.map[n] ?? byPosition(n, i));
   if (names.length <= 1) return [enc.kind === 'none' ? enc.color : theme.accent];
-  return names.map((n, i) => overrides[n] ?? FALLBACK_CATEGORICAL[i] ?? theme.border);
+  return names.map(byPosition);
 }
 
 /** Series order for a discrete Color pill: the palette domain when known, else first appearance. */

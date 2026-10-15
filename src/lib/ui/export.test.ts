@@ -36,8 +36,8 @@ describe('CSV export', () => {
     const csv = csvOf(result, spec, [meta('zone', 'string'), meta('price', 'number'), meta('ts', 'datetime')]);
     const lines = csv.split('\r\n');
     expect(lines[0]).toBe('zone,MONTH(ts),AVG(price)');
-    expect(lines[1]).toBe('"West, TX",1704067200000,25.5');
-    expect(lines[2]).toBe('"Says ""hi""",1706745600000,');
+    expect(lines[1]).toBe('"West, TX",2024-01-01 00:00:00,25.5');
+    expect(lines[2]).toBe('"Says ""hi""",2024-02-01 00:00:00,');
     expect(lines[3]).toBe(',,-3');
     expect(lines[4]).toBe('');
     expect(lines).toHaveLength(5);

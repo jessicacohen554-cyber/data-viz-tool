@@ -363,7 +363,7 @@ describe('buildOption per chart id', () => {
   it('kpi and text-table DOM models', () => {
     const k = buildOption(ctx(...Object.values(fixture('kpi')) as [VizSpec, QueryResult])) as unknown as KpiModel;
     expect(k.kind).toBe('kpi');
-    expect(k.value).toBe('1234.5');
+    expect(k.value).toBe('1,234.5');
     expect(k.delta).toEqual({ label: 'SUM(demand)', text: '-3', sign: 'negative' });
     const t = buildOption(ctx(...Object.values(fixture('text-table')) as [VizSpec, QueryResult])) as unknown as TableModel;
     expect(t.columns.map((c) => [c.label, c.align])).toEqual([['zone', 'left'], ['AVG(price)', 'right']]);

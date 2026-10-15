@@ -1,0 +1,81 @@
+name: Deploy to GitHub Pages
+
+# Publishes the built app to GitHub Pages so it can be prototyped on a phone
+# (plan §12). The build is done here, from source, on every push to main that
+# touches a build input — it does NOT serve the committed dist/, so the Pages
+# site never waits on build-dist.yml and the two jobs cannot race each other.
+#
+# Why a workflow and not branch-source Pages: Vite output must be built, the
+# catalog (data/datasets/*.csv + the generated data/manifest.json) lives at the
+# repo root and is copied beside the build here — never into the committed
+# dist/ — and `base: './'` means the same build serves from /data-viz-tool/ on
+# Pages and from / on the local launcher. Runs in about a minute; ~45 MB of
+# CSV ships with the artifact and Pages serves it gzip.
+#
+# Durable infrastructure only (rule 13 [R-ACTIONS]).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "data/**"
+      - "index.html"
+      - "package*.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - "svelte.config.js"
+      - "scripts/build_manifest.py"
+      - ".github/workflows/deploy-pages.yml"
+  # Manual trigger (Actions tab → this workflow → "Run workflow").
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One publish at a time; never cancel an in-flight publish (an interrupted
+# Pages deploy can leave the live site partially broken).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install (exact lockfile)
+        run: npm ci
+      - name: Build the catalog manifest
+        run: python3 scripts/build_manifest.py
+      - name: Build
+        run: npm run build
+      - name: Copy the catalog beside the build (dist/data is never committed)
+        run: cp -r data dist/data
+      - name: Serve files verbatim (no Jekyll)
+        run: touch dist/.nojekyll
+      - name: Configure Pages
+        # enablement:true turns Pages on with source = GitHub Actions if it
+        # isn't already, so the first run brings the site live with no manual
+        # repo-settings step.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

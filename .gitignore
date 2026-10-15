@@ -1,0 +1,51 @@
+# =============================================================================
+# .gitignore — pattern rules, by section:
+#   1. Dependencies and build caches
+#   2. Secrets and local environment
+#   3. Python
+#   4. OS, editor and log detritus
+#   5. Session scratch
+# NOT ignored, deliberately: dist/ (COMMITTED build output, written on main by
+# .github/workflows/build-dist.yml only — rule 11 [R-DIST]) and data/ (the CSV
+# catalog plus the generated-but-committed manifest.json, which Pages needs
+# because it has no directory listing). dist/data/ IS ignored: it exists only
+# when a local Pages-style copy (`cp -r data dist/data`) was made.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Dependencies and build caches — `npm ci` and Vite recreate all of these.
+# -----------------------------------------------------------------------------
+node_modules/
+dist/data/
+.vite/
+.svelte-kit/
+coverage/
+
+# -----------------------------------------------------------------------------
+# 2. Secrets and local environment — never commit credentials. Keys resolve at
+#    runtime from a local, untracked .env; commit a keys-only .env.example.
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# -----------------------------------------------------------------------------
+# 3. Python — scripts/ and tools/ are stdlib; a venv exists only for the one-off
+#    scripts/convert_keeper_bundle.py (pyarrow) and lives outside the tree.
+# -----------------------------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+
+# -----------------------------------------------------------------------------
+# 4. OS, editor and log detritus.
+# -----------------------------------------------------------------------------
+.DS_Store
+*.log
+
+# -----------------------------------------------------------------------------
+# 5. Session scratch — anything a session wants to keep goes in docs/records/
+#    (rule 16 [R-RECORDS]) or a fixture, never in a scratch dir.
+# -----------------------------------------------------------------------------
+/scratch*/
+.claude/worktrees/

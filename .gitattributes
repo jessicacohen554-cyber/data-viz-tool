@@ -1,0 +1,29 @@
+# Repository attributes.
+#
+# .gitignore MERGE DRIVER — the fix for a conflict class, not a conflict
+# ---------------------------------------------------------------------
+# Lanes append their own ignore lines at the END of .gitignore, so with several
+# branches open at once any two of them collide textually at EOF on a file
+# whose contents are an unordered SET of rules. `merge=union` is git's built-in
+# line-union driver: on a conflicting hunk it keeps the lines from BOTH sides
+# instead of writing conflict markers, which is exactly right here — keeping
+# both sides is always correct, dropping either is the one harmful outcome, and
+# a duplicated rule is a no-op. Scoped to this ONE file: a structured file that
+# collides on the same key with different values must be resolved by reading it.
+.gitignore merge=union
+
+# GENERATED, COMMITTED OUTPUT (rule 11 [R-DIST])
+# -----------------------------------------------
+# dist/ is Vite's build, committed so a Python-only desktop (D-5) always has a
+# current build, and written on main only by .github/workflows/build-dist.yml.
+# data/manifest.json is scripts/build_manifest.py's output, committed because
+# GitHub Pages has no directory listing. linguist-generated keeps them
+# out of language statistics and collapses them in reviews; -diff stops git
+# from rendering a minified bundle as a text diff. Review by regenerating and
+# comparing, never by reading the bytes.
+dist/**            linguist-generated=true -diff
+data/manifest.json linguist-generated=true
+
+# Datasets: a CSV diff is never reviewable line by line (rule 12 [R-DATA] —
+# append a file, never edit one in place).
+*.csv -diff

@@ -1,0 +1,66 @@
+name: Rebuild dist on main
+
+# The single writer of dist/ (rule 11 [R-DIST]). On every push to main that
+# touches a build input, build from source and, if the output differs from
+# what is committed, commit it back as
+# "Rebuild dist [skip ci]" — so a Python-only desktop (D-5: run-viz.bat with
+# no Node serves the committed dist/) always has a current build.
+#
+# "[skip ci]" in the commit subject stops GitHub from starting workflows on
+# the bot commit, which is what prevents this job from re-triggering itself
+# and deploy-pages.yml from running twice. PRs never touch dist/ (ci.yml
+# enforces it), so this commit never conflicts with a lane's work. The data
+# catalog (data/) is not a build input and never enters dist/: a new dataset
+# triggers deploy-pages.yml only.
+#
+# Durable infrastructure only (rule 13 [R-ACTIONS]).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "package*.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - "svelte.config.js"
+
+permissions:
+  contents: write
+
+# One rebuild at a time, in order; a queued rebuild sees the previous commit.
+concurrency:
+  group: dist
+  cancel-in-progress: false
+
+jobs:
+  build-dist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install (exact lockfile)
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit dist/ if it changed
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain dist)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add dist
+            git commit -m "Rebuild dist [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "dist/ already current — nothing to commit"
+          fi

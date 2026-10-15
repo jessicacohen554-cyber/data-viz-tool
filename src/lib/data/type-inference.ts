@@ -25,14 +25,16 @@ export const TRUE_TOKENS: ReadonlySet<string> = new Set(['true', 't', 'yes', 'y'
 /** `|v| < 2^31` fits an `Int32Array` (−2^31 itself is the store's null sentinel). */
 export const INT32_LIMIT = 2_147_483_648;
 
-/** True when the raw cell is one of the null tokens after trimming (cheap path for short strings). */
+/**
+ * True when the raw cell is one of the null tokens after trimming. The first
+ * character gates the slow path: every null token starts with whitespace, `#`,
+ * `N` or `n`, so digits, signs and ordinary words return without allocating.
+ */
 export function isNullToken(raw: string): boolean {
   const n = raw.length;
   if (n === 0) return true;
-  if (n > 6) {
-    // Only whitespace padding can make a null token longer than 4 chars.
-    return raw.charCodeAt(0) <= 32 || raw.charCodeAt(n - 1) <= 32 ? NULL_TOKENS.has(raw.trim().toLowerCase()) : false;
-  }
+  const c = raw.charCodeAt(0);
+  if (c > 32 && c !== 35 && c !== 78 && c !== 110) return false;
   return NULL_TOKENS.has(raw.trim().toLowerCase());
 }
 

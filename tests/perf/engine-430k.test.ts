@@ -72,7 +72,8 @@ describe.skipIf(!process.env.PERF)('engine on the 430K-row ERCOT file', () => {
     expect(filtered.groups).toBe(2 * 7 * 12);
 
     const bytesMB = (bytes.byteLength / 1_048_576).toFixed(1);
-    console.log(
+    // process.stdout, not console: Vitest hides console output of passing tests.
+    process.stdout.write(
       `\nPERF ercot-system-hourly-2019-2025 (${bytesMB} MB, ${store.rowCount} rows)\n` +
       `  parse+build         ${parseMs.toFixed(0)} ms (loader-reported ${elapsedMs.toFixed(0)} ms; budget ${PARSE_BUDGET_MS})\n` +
       `  3-dim group-by cold ${coldMs.toFixed(1)} ms (derived date parts computed)\n` +

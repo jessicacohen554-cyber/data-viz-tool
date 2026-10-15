@@ -119,7 +119,7 @@ class CsvStreamParser {
   private parsePiece(piece: string, hasQuote: boolean): void {
     const result = papaParse<string[]>(piece, {
       header: false,
-      skipEmptyLines: 'greedy',
+      skipEmptyLines: true, // blank lines only; 'greedy' joins every row to test it
       fastMode: !hasQuote,
       delimiter: this.delimiter,
     });

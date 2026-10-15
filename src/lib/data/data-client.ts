@@ -21,6 +21,7 @@ import { RESULT_CACHE_SIZE } from '../core/constants';
 import { queryKey } from '../core/query-of';
 import type { WorkerReply, WorkerRequest } from './protocol';
 
+/** Options of `DataClient.load` (mirrors `LoadRequest`; `keepRaw` defaults to true, `maxRows` to no cap). */
 export interface LoadOptions {
   typeOverrides?: Record<string, { type?: DataType; role?: 'dimension' | 'measure'; dateFormat?: string }>;
   keepRaw?: boolean;
@@ -28,8 +29,10 @@ export interface LoadOptions {
   onProgress?: (p: LoadProgress) => void;
 }
 
+/** What `DataClient.load` resolves with (the `loaded` reply without its id). */
 export interface LoadedDataset { meta: FieldMeta[]; rowCount: number; elapsedMs: number; warnings: string[] }
 
+/** Promise API over the data worker; one instance per worker. Signature frozen by S0. */
 export interface DataClient {
   load(entry: DatasetEntry, source: string | File, opts?: LoadOptions): Promise<LoadedDataset>;
   /** Resolves with the result, or rejects with `{ stale: true }` when a newer query superseded it. */

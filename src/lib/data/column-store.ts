@@ -45,6 +45,7 @@ export interface DateColumn { storage: 'date'; values: Float64Array }
 /** Boolean column: 0, 1 or `BOOL_NULL`. */
 export interface BoolColumn { storage: 'bool'; values: Uint8Array }
 
+/** Any stored column; discriminated by `storage`. */
 export type Column = DictColumn | F64Column | I32Column | DateColumn | BoolColumn;
 
 /** What a builder hands back. */
@@ -71,6 +72,12 @@ function grow<T extends Int32Array | Float64Array | Uint8Array>(a: T, need: numb
   const next = new (a.constructor as new (n: number) => T)(Math.max(need, Math.ceil(a.length * 1.75), 1024));
   next.set(a);
   return next;
+}
+
+/** True when the cell has a non-whitespace character (`Number('')` and `Number('  ')` are both 0). */
+function isNonBlank(raw: string): boolean {
+  for (let i = 0; i < raw.length; i++) if (raw.charCodeAt(i) > 32) return true;
+  return false;
 }
 
 /** Case-insensitive code-point comparison with a code-point tiebreak: deterministic on every device. */
@@ -127,15 +134,16 @@ export class F64Builder implements ColumnBuilder {
   get length(): number { return this.n; }
 
   push(raw: string): void {
-    if (isNullToken(raw)) { this.pushNull(); return; }
+    if (this.n >= this.values.length) this.values = grow(this.values, this.n + 1);
+    // Fast path first: `Number` accepts every numeric cell; only 0 can also mean a blank cell.
     const v = Number(raw);
-    if (!Number.isFinite(v)) this.errors++;
-    this.values = grow(this.values, this.n + 1);
-    this.values[this.n++] = Number.isFinite(v) ? v : NaN;
+    if (v === v && v !== Infinity && v !== -Infinity && (v !== 0 || isNonBlank(raw))) { this.values[this.n++] = v; return; }
+    if (!isNullToken(raw)) this.errors++;
+    this.values[this.n++] = NaN;
   }
 
   pushNull(): void {
-    this.values = grow(this.values, this.n + 1);
+    if (this.n >= this.values.length) this.values = grow(this.values, this.n + 1);
     this.values[this.n++] = NaN;
   }
 
@@ -168,25 +176,24 @@ export class I32Builder implements ColumnBuilder {
 
   push(raw: string): void {
     if (this.promoted) { this.promoted.push(raw); return; }
-    if (isNullToken(raw)) { this.pushNull(); return; }
+    if (this.n >= this.values.length) this.values = grow(this.values, this.n + 1);
     const v = Number(raw);
-    if (Number.isInteger(v) && v > -INT32_LIMIT && v < INT32_LIMIT) {
-      this.values = grow(this.values, this.n + 1);
+    if (Number.isInteger(v) && v > -INT32_LIMIT && v < INT32_LIMIT && (v !== 0 || isNonBlank(raw))) {
       this.values[this.n++] = v;
       return;
     }
     if (!Number.isFinite(v)) {
-      this.errors++;
-      this.values = grow(this.values, this.n + 1);
+      if (!isNullToken(raw)) this.errors++;
       this.values[this.n++] = I32_NULL;
       return;
     }
+    if (v === 0) { this.values[this.n++] = I32_NULL; return; } // blank cell
     this.promote().pushNumber(v);
   }
 
   pushNull(): void {
     if (this.promoted) { this.promoted.pushNull(); return; }
-    this.values = grow(this.values, this.n + 1);
+    if (this.n >= this.values.length) this.values = grow(this.values, this.n + 1);
     this.values[this.n++] = I32_NULL;
   }
 
@@ -307,16 +314,32 @@ export function labelAt(col: Column, i: number): string {
   }
 }
 
-/** Distinct non-null count of a float array (exact up to `EXACT_CARDINALITY_ROWS`, else from a prefix). */
+/** Rows probed to choose between a hash set (few distinct values) and a sort (many) for cardinality. */
+const CARDINALITY_PROBE = 50_000;
+
+/**
+ * Distinct non-null count of a float array: exact up to `EXACT_CARDINALITY_ROWS`
+ * (scaled from a prefix beyond). A probe of the first rows picks the cheaper
+ * method: a `Set` when few values repeat rarely, a typed-array sort otherwise.
+ */
 function floatCardinality(values: Float64Array): number {
   const n = Math.min(values.length, EXACT_CARDINALITY_ROWS);
-  const copy = new Float64Array(n);
-  let m = 0;
-  for (let i = 0; i < n; i++) { const v = values[i]!; if (v === v) copy[m++] = v; }
-  const sorted = copy.subarray(0, m).sort();
-  let distinct = 0;
-  for (let i = 0; i < m; i++) if (i === 0 || sorted[i] !== sorted[i - 1]) distinct++;
-  if (n < values.length && m > 0) distinct = Math.round(distinct * (values.length / n));
+  const probeN = Math.min(n, CARDINALITY_PROBE);
+  const probe = new Set<number>();
+  for (let i = 0; i < probeN; i++) { const v = values[i]!; if (v === v) probe.add(v); }
+  let distinct: number;
+  if (probe.size < probeN * 0.5) {
+    for (let i = probeN; i < n; i++) { const v = values[i]!; if (v === v) probe.add(v); }
+    distinct = probe.size;
+  } else {
+    const copy = new Float64Array(n);
+    let m = 0;
+    for (let i = 0; i < n; i++) { const v = values[i]!; if (v === v) copy[m++] = v; }
+    const sorted = copy.subarray(0, m).sort();
+    distinct = 0;
+    for (let i = 0; i < m; i++) if (i === 0 || sorted[i] !== sorted[i - 1]) distinct++;
+  }
+  if (n < values.length && distinct > 0) distinct = Math.round(distinct * (values.length / n));
   return distinct;
 }
 

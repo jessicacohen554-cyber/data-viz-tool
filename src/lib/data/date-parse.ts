@@ -19,8 +19,9 @@ const MS_DAY = 86_400_000;
 const MS_HOUR = 3_600_000;
 const MS_MINUTE = 60_000;
 
-/** Three-letter and full English month names, index 0 = January (§10: English only). */
+/** Three-letter English month names, index 0 = January (§10: English only). */
 export const MONTH_ABBR: readonly string[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** Full English month names, index 0 = January. */
 export const MONTH_FULL: readonly string[] = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',

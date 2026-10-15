@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-15T04:56:45Z",
+  "datasets": [
+    {
+      "id": "ercot-generation-by-class-hourly-2024",
+      "file": "data/datasets/ercot-generation-by-class-hourly-2024.csv",
+      "name": "Ercot Generation By Class Hourly 2024",
+      "bytes": 4903938,
+      "rows": 131400,
+      "columns": [
+        "timestamp",
+        "class",
+        "fuel_group",
+        "generation_mw"
+      ],
+      "sha1": "6e82a923563e698f48039f49440e4d522f5e702a",
+      "modified": "2026-10-15T04:52:58Z",
+      "description": "ERCOT 2024 hourly generation by plant class and fuel group (15 classes, 131,400 rows): good for treemap, sunburst and stacked area.",
+      "source": "catalog"
+    },
+    {
+      "id": "ercot-system-daily-2019-2025",
+      "file": "data/datasets/ercot-system-daily-2019-2025.csv",
+      "name": "Ercot System Daily 2019-2025",
+      "bytes": 1397940,
+      "rows": 17885,
+      "columns": [
+        "date",
+        "year",
+        "month",
+        "weekday",
+        "zone",
+        "avg_price_usd_mwh",
+        "max_price_usd_mwh",
+        "min_price_usd_mwh",
+        "energy_mwh",
+        "unserved_mwh",
+        "peak_demand_mw",
+        "avg_reserve_price_usd_mw"
+      ],
+      "sha1": "dda29ce0416e6e79462f39f6349966be964b6bd9",
+      "modified": "2026-10-15T04:52:58Z",
+      "description": "ERCOT daily 2019–2025 by zone: average/max/min price, energy, unserved energy, peak demand (17,885 rows).",
+      "source": "catalog"
+    },
+    {
+      "id": "ercot-system-hourly-2019-2025",
+      "file": "data/datasets/ercot-system-hourly-2019-2025.csv",
+      "name": "Ercot System Hourly 2019-2025",
+      "bytes": 34140837,
+      "rows": 429240,
+      "columns": [
+        "timestamp",
+        "year",
+        "month",
+        "day",
+        "hour_of_day",
+        "weekday",
+        "zone",
+        "price_usd_mwh",
+        "demand_mw",
+        "unserved_mw",
+        "reserve_price_usd_mw",
+        "marginal_emission_rate",
+        "ordc_adder_usd_mwh",
+        "rtordpa_overlay_usd_mwh"
+      ],
+      "sha1": "6378983f59d398188c94205cd74bb28a9caba95f",
+      "modified": "2026-10-15T04:52:57Z",
+      "description": "ERCOT system hourly 2019–2025: zone price, demand, unserved energy, reserve price and ORDC adder per zone-hour from the market-simulator keeper backcast (429,240 rows, stress test).",
+      "source": "catalog"
+    },
+    {
+      "id": "ercot-system-hourly-2024",
+      "file": "data/datasets/ercot-system-hourly-2024.csv",
+      "name": "Ercot System Hourly 2024",
+      "bytes": 4866164,
+      "rows": 61320,
+      "columns": [
+        "timestamp",
+        "year",
+        "month",
+        "day",
+        "hour_of_day",
+        "weekday",
+        "zone",
+        "price_usd_mwh",
+        "demand_mw",
+        "unserved_mw",
+        "reserve_price_usd_mw",
+        "marginal_emission_rate",
+        "ordc_adder_usd_mwh",
+        "rtordpa_overlay_usd_mwh"
+      ],
+      "sha1": "49e95668857206a9f11df402d811fdbde9382db1",
+      "modified": "2026-10-15T04:52:58Z",
+      "description": "ERCOT system hourly 2024 only: same columns as the 2019–2025 file, sized for phones (61,320 rows).",
+      "source": "catalog"
+    }
+  ]
+}

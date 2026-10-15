@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "$core/*": ["src/lib/core/*"],
+      "$data/*": ["src/lib/data/*"],
+      "$format/*": ["src/lib/format/*"],
+      "$palette/*": ["src/lib/palette/*"],
+      "$charts/*": ["src/lib/charts/*"],
+      "$stores/*": ["src/lib/stores/*"],
+      "$ui/*": ["src/lib/ui/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte", "tests/**/*.ts", "vite.config.ts"]
+}

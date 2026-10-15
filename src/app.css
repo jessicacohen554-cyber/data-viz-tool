@@ -1,0 +1,302 @@
+/* =============================================================================
+   DATA VIZ TOOL — app stylesheet (light theme only, D-6)
+   Section 1 is the Observatory token block ported VERBATIM from
+   market-simulator docs/codebase-site/css/shared.css (:root, lines 13–123).
+   Section 2 adds the viz-specific tokens. Section 3 is base + layout.
+   Rule R-TOKENS: components reference these variables, never raw values.
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. Observatory design tokens (verbatim port)
+   --------------------------------------------------------------------------- */
+:root {
+  /* Surfaces */
+  --bg-page:      #F8F9FC;
+  --navy:         #1A2744;
+  --navy-dark:    #0F1A2E;
+  --bg-card:      #FFFFFF;
+  --bg-card-dark: rgba(255, 255, 255, 0.06);
+
+  /* Borders */
+  --border:       #D4D8E0;
+  --border-light: #E5E7EB;
+
+  /* Text */
+  --text-primary:   #000000;
+  --text-secondary: #1E293B;
+  --text-muted:     #566370;
+  --text-on-dark:   #FFFFFF;
+  --text-muted-dark: rgba(255, 255, 255, 0.70);
+
+  /* Typography */
+  --font-heading: 'Plus Jakarta Sans', 'DM Sans', 'Helvetica Neue', sans-serif;
+  --font-body:    'DM Sans', 'Plus Jakarta Sans', 'Helvetica Neue', sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+  /* Fuel palette */
+  --solar:       #F59E0B;
+  --wind:        #22C55E;
+  --hydro:       #0EA5E9;
+  --nuclear:     #6366F1;
+  --fossil-gas:  #6B7280;
+  --fossil-coal: #374151;
+  --storage:     #E67E22;
+  --oil:         #92400E;
+  --ccs:         #26A69A;
+  --hydrogen:    #10B981;
+  --geothermal:  #D97706;
+  --offshore:    #009688;
+
+  /* Semi-transparent fuel variants (55% opacity) */
+  --solar-55:        rgba(245, 158, 11,  0.55);
+  --wind-55:         rgba(34,  197, 94,  0.55);
+  --hydro-55:        rgba(14,  165, 233, 0.55);
+  --nuclear-55:      rgba(99,  102, 241, 0.55);
+  --fossil-gas-55:   rgba(107, 114, 128, 0.55);
+  --fossil-coal-55:  rgba(55,  65,  81,  0.55);
+  --storage-55:      rgba(230, 126, 34,  0.55);
+
+  /* Background tint variants (8-12% opacity) */
+  --solar-bg:        rgba(245, 158, 11,  0.10);
+  --wind-bg:         rgba(34,  197, 94,  0.10);
+  --hydro-bg:        rgba(14,  165, 233, 0.10);
+  --nuclear-bg:      rgba(99,  102, 241, 0.10);
+  --fossil-gas-bg:   rgba(107, 114, 128, 0.08);
+  --fossil-coal-bg:  rgba(55,  65,  81,  0.08);
+  --storage-bg:      rgba(230, 126, 34,  0.10);
+
+  /* WCAG AA text-safe variants (on light backgrounds) */
+  --hydro-text:  #0369A1;
+  --green-text:  #15803D;
+  --amber-text:  #B45309;
+  --purple-text: #7C3AED;
+  --red-text:    #B91C1C;
+  --gray-text:   #374151;
+
+  /* ISO palette */
+  --iso-caiso:  #F59E0B;
+  --iso-ercot:  #22C55E;
+  --iso-pjm:    #0EA5E9;
+  --iso-nyiso:  #E91E63;
+  --iso-neiso:  #9C27B0;
+  --iso-miso:   #F97316;
+  --iso-spp:    #14B8A6;
+  --iso-soco:   #6366F1;
+  --iso-nwpp:   #65A30D;
+
+  /* Semantic */
+  --positive: #16A34A;
+  --negative: #DC2626;
+  --warning:  #D97706;
+  --info:     #0284C7;
+
+  /* Spacing scale */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+
+  /* Layout */
+  --max-content: 1440px;
+  --max-prose:   1080px;
+  --nav-height:  56px;
+
+  /* Radius */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  24px;
+
+  /* Elevation */
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md:  0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg:  0 8px 28px rgba(0, 0, 0, 0.12);
+  --shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.16);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+
+/* ---------------------------------------------------------------------------
+   2. Viz tokens (this app)
+   --------------------------------------------------------------------------- */
+:root {
+  /* Pills: Tableau's blue (discrete) / green (continuous) semantics in Observatory hues */
+  --pill-discrete-bg:     rgba(14, 165, 233, 0.12);
+  --pill-discrete-border: #0EA5E9;
+  --pill-discrete-text:   #0369A1;
+  --pill-continuous-bg:     rgba(34, 197, 94, 0.12);
+  --pill-continuous-border: #22C55E;
+  --pill-continuous-text:   #15803D;
+  --pill-radius:   100px;
+  --pill-height:   28px;
+  --pill-font:     0.78rem;
+
+  /* Shelves and drop targets */
+  --shelf-bg:          var(--bg-page);
+  --shelf-border:      var(--border-light);
+  --shelf-label:       var(--text-muted);
+  --drop-target:       rgba(14, 165, 233, 0.08);
+  --drop-target-border: var(--hydro);
+  --drag-ghost-shadow: var(--shadow-lg);
+
+  /* Field type icon colours */
+  --type-string:  var(--text-muted);
+  --type-number:  var(--green-text);
+  --type-date:    var(--hydro-text);
+  --type-boolean: var(--purple-text);
+
+  /* Chart surface */
+  --chart-bg:        var(--bg-card);
+  --chart-grid:      #eef1f4;
+  --chart-tick:      #8a93a0;
+  --chart-axis-text: var(--text-muted);
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --shelf-panel-width: 320px;
+  --bottom-bar-height: 56px;
+  --touch-target: 44px;
+
+  /* Mobile breakpoint used in media queries (documented here, not a var) */
+  /* 900px: desktop three-pane -> phone chart-first with bottom sheets */
+}
+
+/* ---------------------------------------------------------------------------
+   3. Base
+   --------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.mono, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+button { cursor: pointer; background: none; border: none; padding: 0; }
+
+:focus-visible { outline: 2px solid var(--hydro); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* Card and control primitives shared across components */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--pill-radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.btn:hover { background: var(--bg-page); }
+.btn.active, .btn--primary { background: var(--navy); border-color: var(--navy); color: var(--text-on-dark); }
+
+.seg-ctrl {
+  display: inline-flex;
+  background: var(--bg-page);
+  border-radius: 9px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg-ctrl button {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 7px;
+  color: var(--text-muted);
+}
+.seg-ctrl button.active { background: var(--bg-card); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+
+/* ---------------------------------------------------------------------------
+   4. App shell layout (desktop three-pane; phone chart-first)
+   --------------------------------------------------------------------------- */
+.app {
+  display: grid;
+  grid-template-rows: var(--nav-height) 1fr;
+  height: 100dvh;
+}
+
+.app__body {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) var(--shelf-panel-width) 1fr;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  min-height: 0;
+}
+
+.pane { min-height: 0; overflow: auto; padding: var(--space-md); }
+
+.app__bottom-bar { display: none; }
+
+@media (max-width: 900px) {
+  .app__body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    padding: var(--space-sm);
+    padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+  }
+  .pane--fields, .pane--shelves { display: none; }
+  .app__bottom-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    inset: auto 0 0 0;
+    height: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+    box-shadow: var(--shadow-md);
+    z-index: 20;
+  }
+  .app__bottom-bar button {
+    min-height: var(--touch-target);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .app__bottom-bar button.active { color: var(--hydro-text); }
+}

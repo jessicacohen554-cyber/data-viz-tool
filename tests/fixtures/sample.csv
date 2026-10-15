@@ -1,0 +1,10 @@
+id,region,fuel,timestamp,date_us,price,mw,is_peak,note
+1,West,Gas,2024-01-01T00:00,01/02/2024,25.5,1200,true,"plain"
+2,West,Wind,2024-01-01T01:00,01/02/2024,-3.25,850,false,"has, comma"
+3,North,Gas,2024-01-01T02:00,01/03/2024,30,1500,true,"has ""quotes"""
+4,North,Solar,2024-01-01T03:00,13/01/2024,,0,false,
+5,Houston,Gas,2024-02-29T04:00,02/29/2024,45.75,2000,true,"multi
+line"
+6,Houston,Wind,2024-03-01T05:00,03/01/2024,12,600,false,"x"
+7,South,Nuclear,2024-03-01T06:00,03/01/2024,18.125,1350,true,"y"
+8,South,Gas,2024-12-31T23:00,12/31/2024,99.9,1800,false,"z"

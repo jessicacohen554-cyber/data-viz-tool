@@ -56,8 +56,8 @@ A 12% tint over white is still near-white (`--pill-discrete` ≈ `#E2F4FC`,
 
 `--green-text` clears 4.5:1 by 0.02 on its own tint: a pill font below
 0.8rem or a lighter weight on the continuous pill is a Medium finding even
-though the ratio passes. (Recompute with the script in this skill's header
-comment if a token moves; never re-type a ratio from memory.)
+though the ratio passes. (Recompute from the token values if one moves — `scripts/validate_palette.js`
+exports `contrast(a, b)` — never re-type a ratio from memory.)
 
 **The root cause of most pill bugs:** a component using the *mark* color
 (`--hydro`, `--wind`, the raw sky/green) as text or icon color on the tint.

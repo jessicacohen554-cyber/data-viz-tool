@@ -18,14 +18,14 @@ marked.
 | `observatory` | Observatory | 1 `#F59E0B` solar · 2 `#22C55E` wind · 3 `#0EA5E9` hydro · 4 `#6366F1` nuclear · 5 `#6B7280` fossil-gas · 6 `#374151` fossil-coal · 7 `#E67E22` storage · 8 `#26A69A` ccs · 9 `#10B981` hydrogen · 10 `#92400E` oil · 11 `#D97706` geothermal · 12 `#009688` offshore | no | **yes** (§5) | the default (D-10); name matching (§3) assigns entity colors, the rest take the remaining hues in order. Slots 11–12 are near-duplicates of 1 and 8 and are reached only at ≥ 11 categories |
 | `observatory-iso` | Observatory ISO | `#F59E0B` caiso · `#22C55E` ercot · `#0EA5E9` pjm · `#E91E63` nyiso · `#9C27B0` neiso · `#F97316` miso · `#14B8A6` spp · `#6366F1` soco · `#65A30D` nwpp | no | **yes** | auto-selected when ≥ 50% of a field's values match an ISO token (§3) |
 | `okabe-ito` | Okabe–Ito | `#E69F00` `#56B4E9` `#009E73` `#F0E442` `#0072B2` `#D55E00` `#CC79A7` `#000000` (no Observatory anchor; Okabe & Ito 2008) | **yes** | no | the CVD-safe choice; the validator warns on yellow's contrast and black's lightness, not on separation |
-| `classic-10` | Classic 10 | `#4E79A7` `#F28E2B` `#E15759` `#76B7B2` `#59A14F` `#EDC948` `#B07AA1` `#FF9DA7` `#9C755F` `#BAB0AC` (Tableau 10; no Observatory anchor) | no | yes | for users who want Tableau's look |
+| `classic-10` | Classic 10 | `#4E79A7` `#F28E2B` `#E15759` `#76B7B2` `#59A14F` `#EDC948` `#B07AA1` `#FF9DA7` `#9C755F` `#BAB0AC` (Tableau 10; no Observatory anchor) | no (CVD 11.9 passes; normal-vision 14.0 fails) | **yes** | for users who want Tableau's look |
 | `pairs-amber-indigo` | Amber / Indigo | `#F59E0B` `#6366F1` | yes | no | complementary pair; default for `dumbbell` and `slope` (§4) |
 | `pairs-sky-orange` | Sky / Orange | `#0EA5E9` `#E67E22` | yes | no | pair |
 | `pairs-green-magenta` | Green / Magenta | `#22C55E` `#E91E63` | yes | no | pair |
 | `pairs-teal-brown` | Teal / Brown | `#26A69A` `#92400E` | yes | no | pair |
 | `pairs-navy-gold` | Navy / Gold | `#1A2744` `#EAB308` (gold: no Observatory anchor) | yes | no | pair; navy fails the lightness band — fine for two series, noted in the picker |
 | `pairs-purple-lime` | Purple / Lime | `#9C27B0` `#65A30D` | yes | no | pair |
-| `pastel` | Pastel | the 10 Observatory colors composited at 55% over white (`--*-55` tokens): `#F9C56D` `#7ADC9E` `#6EC9F2` `#A1A3F7` `#A5A9B2` `#8B939C` `#F0B27A` `#7DCAC2` `#6FD5B3` `#C08F6E` | no | yes | backgrounds and area fills; never for lines < 2px |
+| `pastel` | Pastel | the 10 Observatory colors composited at 55% over white (`--*-55` tokens): `#FACA79` `#85DFA6` `#7ACEF3` `#A9ABF7` `#AEB1B9` `#91969F` `#F1B885` `#88CEC7` `#7CD8BA` `#C3967A` | no | yes | backgrounds and area fills; never for lines < 2px |
 | `bold` | Bold | the 10 Observatory hues at OKLCH L 0.55, C 0.17 (gamut-clipped), generated | no | yes | dark surface in a later theme; shipped for parity |
 | `grayscale` | Grayscale | OKLCH L 0.86 0.74 0.62 0.50 0.38 0.25, C 0 | yes (luminance only) | yes | print and labels-first tables |
 
@@ -171,6 +171,14 @@ flag cannot rot.
 | `okabe-ito` (8) | 15.8 | 16.4 | `#F0E442` L 0.90, `#000000` out of band / chroma | amber, sky, yellow, pink | passes separation → `colorblindSafe: true` |
 | `seq-observatory-heat` | — | — | L non-monotone, hue spread 159°, light end 1.07:1 | — | exempt, flagged |
 
-Pairs sets have one adjacent pair each and pass by construction of the hue
-choice (complementary hues are > 90° apart); their measured values are
-recorded in the registry's `validation` block when S2 ships them, not here.
+| `pairs-amber-indigo` | 36.3 | 40.3 | pass | solar | `colorblindSafe: true` |
+| `pairs-sky-orange` | 25.5 | 30.8 | pass | sky, orange | `colorblindSafe: true` |
+| `pairs-green-magenta` | 10.7 (deutan) | 41.3 | pass | green | `colorblindSafe: true` |
+| `pairs-teal-brown` | 20.4 | 28.4 | pass | teal | `colorblindSafe: true` |
+| `pairs-navy-gold` | 52.3 | 56.2 | `#1A2744` L 0.28 out of band | gold (1.82) | separation passes → `colorblindSafe: true`; the band miss is reported, not gated |
+| `pairs-purple-lime` | 28.5 | 41.1 | pass | lime (2.93) | `colorblindSafe: true` |
+| `classic-10` (10) | 11.9 | **14.0** `#59A14F`↔`#76B7B2` | pass | orange, teal, yellow, pink, gray | fails the normal-vision floor → `labelsRequired: true` |
+
+`pastel`, `bold`, `grayscale` and the generated ramps are measured when S2
+ships the generator; their `validation` blocks are produced by the same
+script, and `npm test` fails if a block disagrees with a fresh run.

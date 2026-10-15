@@ -1,8 +1,49 @@
 /**
- * STUB (S0) — replaced by shard S3 (docs/CHARTS.md). The `ChartDef` shape is frozen.
+ * The chart registry (docs/CHARTS.md): one `ChartDef` per id in
+ * `CHART_TYPE_IDS`, the picker's group order, and the plan features a chart
+ * needs from the worker. The `ChartDef` / `Requirement` / `BuildContext`
+ * shapes are frozen (S0); `BuildContext.theme` is an additive optional field
+ * the canvas fills with live CSS token values. Framework-free (rule R-PURE).
  */
-import type { ChartTypeId, ShelfId, VizSpec, QueryResult, FieldMeta } from '../core/types';
+import type { ChartTypeId, FieldMeta, QueryResult, ShelfId, VizSpec } from '../core/types';
+import { CHART_TYPE_IDS } from '../core/constants';
 import type { ChartNeeds } from '../core/query-of';
+import type { ChartTheme } from './option-common';
+import { classify } from './option-common';
+
+import { bar } from './types/bar';
+import { barH } from './types/bar-h';
+import { barGrouped } from './types/bar-grouped';
+import { barStacked } from './types/bar-stacked';
+import { barStacked100 } from './types/bar-stacked-100';
+import { line } from './types/line';
+import { area } from './types/area';
+import { streamgraph } from './types/streamgraph';
+import { scatter } from './types/scatter';
+import { bubble } from './types/bubble';
+import { pie } from './types/pie';
+import { donut } from './types/donut';
+import { funnel } from './types/funnel';
+import { gauge } from './types/gauge';
+import { treemap } from './types/treemap';
+import { sunburst } from './types/sunburst';
+import { heatmap } from './types/heatmap';
+import { calendarHeatmap } from './types/calendar-heatmap';
+import { highlightTable } from './types/highlight-table';
+import { histogram } from './types/histogram';
+import { boxplot } from './types/boxplot';
+import { waterfall } from './types/waterfall';
+import { bullet } from './types/bullet';
+import { lollipop } from './types/lollipop';
+import { dumbbell } from './types/dumbbell';
+import { radar } from './types/radar';
+import { parallel } from './types/parallel';
+import { sankey } from './types/sankey';
+import { slope } from './types/slope';
+import { bump } from './types/bump';
+import { candlestick } from './types/candlestick';
+import { kpi } from './types/kpi';
+import { textTable } from './types/text-table';
 
 /** Shelf requirements evaluated by show-me.ts. */
 export interface Requirement {
@@ -20,8 +61,11 @@ export interface BuildContext {
   result: QueryResult;
   meta: FieldMeta[];
   isMobile: boolean;
+  /** Live CSS token values from the canvas; builders fall back to `DEFAULT_THEME`. */
+  theme?: ChartTheme;
 }
 
+/** One chart type. */
 export interface ChartDef {
   id: ChartTypeId;
   label: string;
@@ -35,9 +79,70 @@ export interface ChartDef {
   needs?: ChartNeeds;
   /** ECharts modules this chart needs registered (cross-checked against echarts-setup.ts by a test). */
   echartsModules: string[];
-  /** Pure: spec + result → ECharts option (or an HTMLElement for `dom` renderers). */
+  /** Pure: spec + result → ECharts option (or a model record for `dom` renderers). */
   build: (ctx: BuildContext) => Record<string, unknown>;
 }
 
-/** The registry; S3 fills it for every id in CHART_TYPE_IDS. */
-export const CHART_TYPES: Partial<Record<ChartTypeId, ChartDef>> = {};
+const DEFS: readonly ChartDef[] = [
+  bar, barH, barGrouped, barStacked, barStacked100,
+  line, area, streamgraph,
+  scatter, bubble,
+  pie, donut, funnel, gauge,
+  treemap, sunburst,
+  heatmap, calendarHeatmap, highlightTable,
+  histogram, boxplot,
+  waterfall, bullet, lollipop, dumbbell,
+  radar, parallel, sankey,
+  slope, bump,
+  candlestick,
+  kpi, textTable,
+];
+
+/** The registry: every id in `CHART_TYPE_IDS`. */
+export const CHART_TYPES: Partial<Record<ChartTypeId, ChartDef>> = Object.fromEntries(DEFS.map((d) => [d.id, d])) as Partial<Record<ChartTypeId, ChartDef>>;
+
+/** Definition for an id; throws for an unknown id (the contract guarantees coverage). */
+export function chartDef(id: ChartTypeId): ChartDef {
+  const d = CHART_TYPES[id];
+  if (!d) throw new Error(`chart type "${id}" is not registered`);
+  return d;
+}
+
+/** Picker groups in docs/CHARTS.md order (finer than `ChartDef.group`). */
+export const PICKER_GROUPS: ReadonlyArray<{ label: string; ids: readonly ChartTypeId[] }> = [
+  { label: 'Bars', ids: ['bar', 'bar-h', 'bar-grouped', 'bar-stacked', 'bar-stacked-100'] },
+  { label: 'Lines', ids: ['line', 'area', 'streamgraph'] },
+  { label: 'Points', ids: ['scatter', 'bubble'] },
+  { label: 'Parts of whole', ids: ['pie', 'donut', 'funnel', 'gauge'] },
+  { label: 'Hierarchy', ids: ['treemap', 'sunburst'] },
+  { label: 'Grid', ids: ['heatmap', 'calendar-heatmap', 'highlight-table'] },
+  { label: 'Distribution', ids: ['histogram', 'boxplot'] },
+  { label: 'Comparison', ids: ['waterfall', 'bullet', 'lollipop', 'dumbbell'] },
+  { label: 'Multivariate', ids: ['radar', 'parallel'] },
+  { label: 'Flow', ids: ['sankey'] },
+  { label: 'Rank / change', ids: ['slope', 'bump'] },
+  { label: 'Finance', ids: ['candlestick'] },
+  { label: 'Text', ids: ['kpi', 'text-table'] },
+];
+
+/**
+ * Plan features for the spec's chart type, refined by the pills: scatter,
+ * bubble and parallel disaggregate only when no dimension groups the marks
+ * (CHARTS.md #9, #27); boxplot always asks for box statistics.
+ */
+export function needsFor(spec: VizSpec): ChartNeeds {
+  const def = CHART_TYPES[spec.chartType];
+  const needs: ChartNeeds = { ...(def?.needs ?? {}) };
+  if (needs.disaggregate && classify(spec).dims.length > 0) delete needs.disaggregate;
+  return needs;
+}
+
+/** Every module name any ChartDef lists, deduplicated and sorted (what `echarts-setup.ts` must register). */
+export function requiredEchartsModules(): string[] {
+  return [...new Set(DEFS.flatMap((d) => d.echartsModules))].sort();
+}
+
+/** Ids missing from the registry (empty when the contract is met). */
+export function unregisteredIds(): ChartTypeId[] {
+  return CHART_TYPE_IDS.filter((id) => !CHART_TYPES[id]);
+}

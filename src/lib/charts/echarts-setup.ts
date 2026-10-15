@@ -11,8 +11,8 @@ import {
   ParallelChart, PieChart, RadarChart, SankeyChart, ScatterChart, SunburstChart, ThemeRiverChart, TreemapChart,
 } from 'echarts/charts';
 import {
-  CalendarComponent, DataZoomInsideComponent, GridComponent, LegendComponent, ParallelComponent, RadarComponent,
-  SingleAxisComponent, TooltipComponent, VisualMapComponent,
+  CalendarComponent, DataZoomInsideComponent, GraphicComponent, GridComponent, LegendComponent, ParallelComponent,
+  RadarComponent, SingleAxisComponent, TooltipComponent, VisualMapComponent,
 } from 'echarts/components';
 import { LabelLayout } from 'echarts/features';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -21,8 +21,8 @@ import { CanvasRenderer } from 'echarts/renderers';
 const MODULES = {
   BarChart, BoxplotChart, CandlestickChart, CustomChart, FunnelChart, GaugeChart, HeatmapChart, LineChart,
   ParallelChart, PieChart, RadarChart, SankeyChart, ScatterChart, SunburstChart, ThemeRiverChart, TreemapChart,
-  CalendarComponent, DataZoomInsideComponent, GridComponent, LegendComponent, ParallelComponent, RadarComponent,
-  SingleAxisComponent, TooltipComponent, VisualMapComponent,
+  CalendarComponent, DataZoomInsideComponent, GraphicComponent, GridComponent, LegendComponent, ParallelComponent,
+  RadarComponent, SingleAxisComponent, TooltipComponent, VisualMapComponent,
   LabelLayout, CanvasRenderer,
 } as const;
 

@@ -11,6 +11,6 @@ export const donut: ChartDef = {
   requires: { dims: [1, 1], measures: [1, 1] },
   channels: ['color', 'label', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['PieChart', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['PieChart', 'GraphicComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
   build: (ctx) => buildPie(ctx, ['55%', '80%'], true),
 };

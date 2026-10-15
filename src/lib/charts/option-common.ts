@@ -413,12 +413,13 @@ export function gridBox(ctx: BuildContext, seriesCount: number, extra: OptionObj
   const legendRight = ctx.spec.legend.show && seriesCount >= 2 && ctx.spec.legend.position === 'right';
   const legendTop = ctx.spec.legend.show && seriesCount >= 2 && ctx.spec.legend.position === 'top';
   const legendBottom = ctx.spec.legend.show && seriesCount >= 2 && ctx.spec.legend.position === 'bottom';
+  // ECharts 6: the grid's outer bounds contain axis labels and names by default (`containLabel` is deprecated).
   return {
     left: 12,
     right: legendRight ? 140 : 16,
     top: legendTop ? 44 : 20,
     bottom: legendBottom ? 44 : 12,
-    containLabel: true,
+    outerBoundsContain: 'all',
     ...extra,
   };
 }
@@ -697,7 +698,9 @@ export function cartesianLines(ctx: BuildContext, opts: LineOptions = {}): Optio
     return obj;
   });
   const xAxis = kind === 'time' ? timeAxis(ctx, 'x', xPill) : kind === 'value' ? valueAxis(ctx, 'x', xPill) : { ...categoryAxis(ctx, 'x', xPill, p.x), boundaryGap: false };
-  const yAxis = valueAxis(ctx, 'y', opts.inverted ? undefined : mPill, opts.inverted ? { inverse: !ctx.spec.axes.y.reversed, minInterval: 1, name: opts.yAxisName ?? 'Rank', axisLabel: { color: theme.axisText, fontSize: 11 } } : {});
+  const yAxis = valueAxis(ctx, 'y', opts.inverted ? undefined : mPill, opts.inverted
+    ? { inverse: !ctx.spec.axes.y.reversed, min: 1, max: Math.max(1, p.series.length), minInterval: 1, name: opts.yAxisName ?? 'Rank', axisLabel: { color: theme.axisText, fontSize: 11, formatter: (v: number) => `#${v}` } }
+    : {});
   const tooltipFmt = (params: unknown) => {
     const list = Array.isArray(params) ? params : [params];
     const head = list[0] as { axisValue?: string | number; axisValueLabel?: string } | undefined;

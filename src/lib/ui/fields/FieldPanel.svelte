@@ -34,6 +34,10 @@
 
   let search = $state('');
   let menu = $state<{ meta: FieldMeta; anchor: HTMLElement } | null>(null);
+  let root = $state<HTMLElement | null>(null);
+
+  /** A hidden instance (the desktop pane under `display:none` on phones) must not react to taps. */
+  function isShown(): boolean { return !!root && root.getClientRects().length > 0; }
 
   const TYPE_LABEL: Record<DataType, string> = {
     string: 'String', integer: 'Number (whole)', number: 'Number (decimal)', date: 'Date', datetime: 'Date & Time', boolean: 'Boolean',
@@ -69,7 +73,7 @@
 
   /** A field tapped on a phone: arm tap-to-place and jump to the shelves sheet. */
   function onTap(e: TapEvent): void {
-    if (e.payload.kind !== 'field') return;
+    if (e.payload.kind !== 'field' || !isShown()) return;
     if (ui.isMobile) {
       ui.tapSelection = selectionToken(e.payload);
       ui.toast(`Tap a shelf to place ${e.payload.field}`, 'info');
@@ -114,7 +118,7 @@
   }
 </script>
 
-<div class="fields">
+<div class="fields" bind:this={root}>
   <label class="fields__search">
     <span class="fields__search-icon" aria-hidden="true"><Icon name="search" /></span>
     <input type="search" placeholder="Search fields" aria-label="Search fields" bind:value={search} />

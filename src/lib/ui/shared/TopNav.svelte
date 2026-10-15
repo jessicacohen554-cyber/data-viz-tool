@@ -68,10 +68,19 @@
     padding: 0 var(--space-md);
     background: var(--navy);
     color: var(--text-on-dark);
+    min-width: 0;
+    overflow: hidden;
   }
-  .topnav__brand { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; flex: 1; }
-  .topnav__bolt { display: inline-flex; color: var(--hydro); --icon-size: 20px; }
-  .topnav__word { font-family: var(--font-heading); font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+  .topnav__brand { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; flex: 1 1 0; overflow: hidden; }
+  .topnav__bolt { display: inline-flex; flex: none; color: var(--hydro); --icon-size: 20px; }
+  .topnav__word {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .topnav__ver { font-size: 0.68rem; opacity: 0.6; }
   .topnav__title {
     margin-left: var(--space-sm);
@@ -83,7 +92,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .topnav__history { display: flex; gap: 2px; }
+  .topnav__history { display: flex; flex: none; gap: 2px; }
   .topnav__icon {
     display: inline-flex;
     align-items: center;
@@ -95,7 +104,7 @@
   }
   .topnav__icon:hover:not(:disabled) { background: var(--bg-card-dark); color: var(--text-on-dark); }
   .topnav__icon:disabled { opacity: 0.35; cursor: default; }
-  .topnav__links { display: flex; gap: var(--space-xs); }
+  .topnav__links { display: flex; flex: none; gap: var(--space-xs); }
   .topnav__links :global(.topnav__link) {
     color: var(--text-muted-dark);
     font-size: 0.82rem;
@@ -106,8 +115,10 @@
   .topnav__links :global(.topnav__link:hover:not(:disabled)) { background: var(--bg-card-dark); color: var(--text-on-dark); }
   .topnav__links :global(.topnav__link:disabled) { opacity: 0.45; cursor: default; }
   @media (max-width: 900px) {
-    .topnav__ver, .topnav__title { display: none; }
+    .topnav { gap: var(--space-sm); padding: 0 var(--space-sm); }
+    /* Phones: bolt only; the word would clip to "Data …" beside three links and undo/redo. */
+    .topnav__word, .topnav__ver, .topnav__title { display: none; }
     .topnav__icon { width: var(--touch-target); height: var(--touch-target); }
-    .topnav__links :global(.topnav__link) { min-height: var(--touch-target); }
+    .topnav__links :global(.topnav__link) { min-height: var(--touch-target); padding: 6px var(--space-sm); }
   }
 </style>

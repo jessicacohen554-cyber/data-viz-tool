@@ -65,7 +65,8 @@
       <Pill {pill} shelf={id} selected={selectedId === pill.id} hasFilter={filteredIds.includes(pill.id)} onMenu={onPillMenu} />
     {/each}
     {#if hoverIndex !== null && hoverIndex >= pills.length}<span class="shelf__indicator" aria-hidden="true"></span>{/if}
-    {#if pills.length === 0 || armed}
+    {#if pills.length === 0}
+      <!-- Only on an empty shelf: arming must not change layout (a bottom sheet would shift under the finger). -->
       <span class="shelf__hint" aria-hidden={armed ? undefined : 'true'}>{hint}</span>
     {/if}
   </div>

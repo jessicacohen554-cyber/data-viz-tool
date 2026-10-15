@@ -62,7 +62,8 @@
   }
   .toast__close:hover { background: var(--bg-card-dark); color: var(--text-on-dark); }
   @media (max-width: 900px) {
-    .toasts { bottom: calc(var(--bottom-bar-height) + var(--space-md) + env(safe-area-inset-bottom)); }
+    /* Phones: drop from below the nav so the stack never covers a bottom sheet's shelves. */
+    .toasts { top: calc(var(--nav-height) + var(--space-sm)); bottom: auto; }
     .toast__close { width: var(--touch-target); height: var(--touch-target); }
   }
 </style>

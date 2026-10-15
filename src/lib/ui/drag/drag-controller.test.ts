@@ -185,11 +185,32 @@ describe('drag controller', () => {
     expect(drop).not.toHaveBeenCalled();
   });
 
-  it('a click on a zone with no drag in progress is a zone tap (tap-to-place)', () => {
+  it('a press and release on a zone with no drag in progress is a zone tap (tap-to-place)', () => {
     const zonetap = vi.fn();
     ctl.on('zonetap', zonetap);
-    columns.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    columns.dispatchEvent(pointer('pointerdown', { x: 150, y: 20, pointerType: 'touch' }));
+    columns.dispatchEvent(pointer('pointerup', { x: 152, y: 21, pointerType: 'touch' }));
     expect(zonetap).toHaveBeenCalledWith({ zone: 'columns' });
+    // A swipe across the zone (scroll) is not a tap.
+    columns.dispatchEvent(pointer('pointerdown', { x: 150, y: 20, pointerType: 'touch' }));
+    columns.dispatchEvent(pointer('pointerup', { x: 150, y: 60, pointerType: 'touch' }));
+    expect(zonetap).toHaveBeenCalledTimes(1);
+  });
+
+  it('a tap on a pill inside the zone, or a stray click, is never a zone tap', () => {
+    const zonetap = vi.fn();
+    const tap = vi.fn();
+    ctl.on('zonetap', zonetap);
+    ctl.on('tap', tap);
+    columns.append(pill);
+    pill.dispatchEvent(pointer('pointerdown', { x: 120, y: 10 }));
+    pill.dispatchEvent(pointer('pointerup', { x: 120, y: 10 }));
+    pill.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(tap).toHaveBeenCalledTimes(1);
+    expect(zonetap).not.toHaveBeenCalled();
+    // The browser's compat click after a touch tap may target the zone itself once layout moved.
+    columns.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(zonetap).not.toHaveBeenCalled();
   });
 
   it('a press on a button inside the source does not start a drag', () => {

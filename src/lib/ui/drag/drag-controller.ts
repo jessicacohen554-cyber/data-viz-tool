@@ -31,7 +31,7 @@ export interface DropEvent { payload: DragPayload; zone: ShelfId; index: number 
 export interface HoverEvent { payload: DragPayload; zone: ShelfId | null; index: number }
 /** Fired when a press ends without becoming a drag (tap-to-place fallback). */
 export interface TapEvent { payload: DragPayload; element: HTMLElement }
-/** Fired when a zone is tapped while no drag is in progress. */
+/** Fired when a zone itself (not a pill inside it) is tapped while no drag is in progress. */
 export interface ZoneTapEvent { zone: ShelfId }
 
 /** Event map for `on()`. */
@@ -60,7 +60,6 @@ export interface DragControllerOptions {
 
 /** Attribute a zone's children carry so the controller can compute the drop index. */
 export const DROP_ITEM_ATTR = 'data-drop-item';
-
 /** The controller API. */
 export interface DragController {
   /** Payload currently being dragged, or null. */
@@ -283,11 +282,14 @@ export function createDragController(options: DragControllerOptions = {}): DragC
       const move = (e: PointerEvent) => onPointerMove(e);
       const up = (e: PointerEvent) => onPointerUp(e);
       const cancel = (e: PointerEvent) => onPointerCancel(e);
+      // Chrome raises contextmenu on a touch long-press; while a press is live it is the drag, not a menu.
+      const ctx = (e: Event) => { if (press?.source === source) { e.preventDefault(); e.stopImmediatePropagation(); } };
       el.addEventListener('pointerdown', down);
       el.addEventListener('pointermove', move);
       el.addEventListener('pointerup', up);
       el.addEventListener('pointercancel', cancel);
       el.addEventListener('lostpointercapture', cancel);
+      el.addEventListener('contextmenu', ctx);
       // touch-action:none on sources only (plan §10): the page keeps scrolling elsewhere.
       el.style.touchAction = 'none';
       source.off = () => {
@@ -296,6 +298,7 @@ export function createDragController(options: DragControllerOptions = {}): DragC
         el.removeEventListener('pointerup', up);
         el.removeEventListener('pointercancel', cancel);
         el.removeEventListener('lostpointercapture', cancel);
+        el.removeEventListener('contextmenu', ctx);
         if (press?.source === source) finish(false);
         sources.delete(source);
       };
@@ -303,11 +306,34 @@ export function createDragController(options: DragControllerOptions = {}): DragC
       return source.off;
     },
     registerZone(el, spec) {
-      const click = () => { if (!press) emit('zonetap', { zone: spec.id }); };
-      el.addEventListener('click', click);
+      // A zone tap is a pointerdown + pointerup pair on the zone itself (not on a pill inside it)
+      // with little movement. Never `click`: the browser's compat click after a touch tap on a
+      // pill can land on a zone once the layout has moved (a bottom sheet growing), and would
+      // read as a second tap.
+      let tapStart: { id: number; x: number; y: number } | null = null;
+      const insideSource = (t: EventTarget | null): boolean => {
+        for (const s of sources) if (t && s.el.contains(t as Node)) return true;
+        return false;
+      };
+      const down = (e: PointerEvent) => {
+        tapStart = press || insideSource(e.target) ? null : { id: e.pointerId, x: e.clientX, y: e.clientY };
+      };
+      const up = (e: PointerEvent) => {
+        const start = tapStart;
+        tapStart = null;
+        if (!start || start.id !== e.pointerId || press) return;
+        if (Math.hypot(e.clientX - start.x, e.clientY - start.y) >= opts.thresholdPx) return;
+        emit('zonetap', { zone: spec.id });
+      };
+      const cancel = () => { tapStart = null; };
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', cancel);
       const zone: Zone = { el, spec, off: () => {} };
       zone.off = () => {
-        el.removeEventListener('click', click);
+        el.removeEventListener('pointerdown', down);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', cancel);
         el.classList.remove(opts.overClass);
         zones.delete(zone);
       };

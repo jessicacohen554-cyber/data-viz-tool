@@ -29,6 +29,14 @@
   let dragStartY: number | null = null;
   let offset = $state(0);
   let opener: HTMLElement | null = null;
+  /** The backdrop closes on a pointerdown + pointerup pair on itself, never on `click`: the
+   * browser's compat click after a touch tap elsewhere (a field that just switched sheets) can
+   * land on a freshly opened backdrop and would close it at once. */
+  let backdropPress = false;
+
+  function onBackdropDown(): void { backdropPress = true; }
+  function onBackdropUp(): void { if (backdropPress) { backdropPress = false; onClose(); } }
+  function onBackdropCancel(): void { backdropPress = false; }
 
   function onHandleDown(e: PointerEvent): void {
     dragStartY = e.clientY;
@@ -61,7 +69,7 @@
 </script>
 
 {#if open}
-  <div class="sheet__backdrop" role="presentation" onclick={onClose}></div>
+  <div class="sheet__backdrop" role="presentation" onpointerdown={onBackdropDown} onpointerup={onBackdropUp} onpointercancel={onBackdropCancel}></div>
   <div
     class="sheet"
     role="dialog"

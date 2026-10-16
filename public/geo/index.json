@@ -1,0 +1,64 @@
+[
+  {
+    "id": "us-states",
+    "file": "us-states.geojson",
+    "label": "US states",
+    "kind": "choropleth",
+    "keyProps": [
+      "name",
+      "code",
+      "fips"
+    ],
+    "bytes": 134530,
+    "features": 51,
+    "source": "https://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_20m.json",
+    "license": "Public domain (US Census Bureau 2010 cartographic boundary file, 1:20m, converted to GeoJSON by eric.clst.org; a work of the US Government is not subject to copyright)",
+    "retrieved": "2026-10-16"
+  },
+  {
+    "id": "world-countries",
+    "file": "world-countries.geojson",
+    "label": "World countries",
+    "kind": "choropleth",
+    "keyProps": [
+      "name",
+      "iso_a2",
+      "iso_a3"
+    ],
+    "bytes": 216364,
+    "features": 177,
+    "source": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson",
+    "license": "Public domain (Natural Earth, naturalearthdata.com/about/terms-of-use)",
+    "retrieved": "2026-10-16"
+  },
+  {
+    "id": "us-counties",
+    "file": "us-counties.geojson",
+    "label": "US counties",
+    "kind": "choropleth",
+    "keyProps": [
+      "name",
+      "state",
+      "fips"
+    ],
+    "bytes": 1463432,
+    "features": 3143,
+    "source": "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json",
+    "license": "Public domain geometry (US Census Bureau 2010 cartographic boundary file) redistributed by plotly/datasets under the MIT License",
+    "retrieved": "2026-10-16"
+  },
+  {
+    "id": "ercot-zones",
+    "file": "ercot-zones.geojson",
+    "label": "ERCOT model zones",
+    "kind": "choropleth",
+    "keyProps": [
+      "zone"
+    ],
+    "bytes": 23970,
+    "features": 7,
+    "source": "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json; https://www.ercot.com/files/assets/2022/12/13/ERCOT-Maps_Area-by-county.jpg; https://www.ercot.com/files/docs/2024/04/30/Appendix_D_Profile_Decision_Tree_050124.xlsx; https://www2.census.gov/geo/docs/maps-data/data/rel2020/zcta520/tab20_zcta520_county20_natl.txt",
+    "license": "Derived: Public domain geometry (US Census Bureau 2010 cartographic boundary file) redistributed by plotly/datasets under the MIT License; ERCOT County Map (ERCOT media kit, publicly posted; county membership read from it); ERCOT Load Profiling Guide Appendix D (ERCOT market rules, publicly posted); only the ZIP->weather-zone facts are used, the workbook itself is not redistributed; Public domain (US Census Bureau 2020 ZCTA-to-county relationship file)",
+    "retrieved": "2026-10-16"
+  }
+]

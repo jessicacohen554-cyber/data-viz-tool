@@ -1,0 +1,1756 @@
+{
+  "counties": {
+    "48001": {
+      "name": "Anderson",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48003": {
+      "name": "Andrews",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48005": {
+      "name": "Angelina",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48007": {
+      "name": "Aransas",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48009": {
+      "name": "Archer",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NCENT": 0.0554,
+        "NORTH": 0.9446
+      },
+      "zone": "North"
+    },
+    "48011": {
+      "name": "Armstrong",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48013": {
+      "name": "Atascosa",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SCENT": 0.1296,
+        "SOUTH": 0.8704
+      },
+      "zone": "South"
+    },
+    "48015": {
+      "name": "Austin",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 0.6726,
+        "SCENT": 0.3274
+      },
+      "zone": "Houston"
+    },
+    "48019": {
+      "name": "Bandera",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 0.8673,
+        "WEST": 0.1327
+      },
+      "zone": "South_Central"
+    },
+    "48021": {
+      "name": "Bastrop",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48023": {
+      "name": "Baylor",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48025": {
+      "name": "Bee",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SCENT": 0.1257,
+        "SOUTH": 0.8743
+      },
+      "zone": "South"
+    },
+    "48027": {
+      "name": "Bell",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9679,
+        "SCENT": 0.0261,
+        "WEST": 0.0061
+      },
+      "zone": "North"
+    },
+    "48029": {
+      "name": "Bexar",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 0.9976,
+        "SOUTH": 0.0024
+      },
+      "zone": "South_Central"
+    },
+    "48031": {
+      "name": "Blanco",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48033": {
+      "name": "Borden",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 0.7716,
+        "WEST": 0.2284
+      },
+      "zone": "West"
+    },
+    "48035": {
+      "name": "Bosque",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48039": {
+      "name": "Brazoria",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48041": {
+      "name": "Brazos",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48043": {
+      "name": "Brewster",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48045": {
+      "name": "Briscoe",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48047": {
+      "name": "Brooks",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48049": {
+      "name": "Brown",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48051": {
+      "name": "Burleson",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48053": {
+      "name": "Burnet",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.0108,
+        "SCENT": 0.7289,
+        "WEST": 0.2603
+      },
+      "zone": "South_Central"
+    },
+    "48055": {
+      "name": "Caldwell",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48057": {
+      "name": "Calhoun",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 0.9364,
+        "SOUTH": 0.0636
+      },
+      "zone": "Houston"
+    },
+    "48059": {
+      "name": "Callahan",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.92,
+        "WEST": 0.08
+      },
+      "zone": "North"
+    },
+    "48061": {
+      "name": "Cameron",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48065": {
+      "name": "Carson",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48071": {
+      "name": "Chambers",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48073": {
+      "name": "Cherokee",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48075": {
+      "name": "Childress",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48077": {
+      "name": "Clay",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48081": {
+      "name": "Coke",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48083": {
+      "name": "Coleman",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "NCENT": 0.0499,
+        "WEST": 0.9501
+      },
+      "zone": "West"
+    },
+    "48085": {
+      "name": "Collin",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9901,
+        "NORTH": 0.0099
+      },
+      "zone": "North"
+    },
+    "48087": {
+      "name": "Collingsworth",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48089": {
+      "name": "Colorado",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "COAST": 0.1521,
+        "SCENT": 0.8479
+      },
+      "zone": "South_Central"
+    },
+    "48091": {
+      "name": "Comal",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48093": {
+      "name": "Comanche",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48095": {
+      "name": "Concho",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48097": {
+      "name": "Cooke",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NCENT": 0.0266,
+        "NORTH": 0.9734
+      },
+      "zone": "North"
+    },
+    "48099": {
+      "name": "Coryell",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9975,
+        "WEST": 0.0025
+      },
+      "zone": "North"
+    },
+    "48101": {
+      "name": "Cottle",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48103": {
+      "name": "Crane",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48105": {
+      "name": "Crockett",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 0.9289,
+        "WEST": 0.0711
+      },
+      "zone": "West"
+    },
+    "48107": {
+      "name": "Crosby",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48109": {
+      "name": "Culberson",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48113": {
+      "name": "Dallas",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48115": {
+      "name": "Dawson",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48117": {
+      "name": "Deaf Smith",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48119": {
+      "name": "Delta",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48121": {
+      "name": "Denton",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9953,
+        "NORTH": 0.0047
+      },
+      "zone": "North"
+    },
+    "48123": {
+      "name": "DeWitt",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48125": {
+      "name": "Dickens",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48127": {
+      "name": "Dimmit",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48129": {
+      "name": "Donley",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48131": {
+      "name": "Duval",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48133": {
+      "name": "Eastland",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48135": {
+      "name": "Ector",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48137": {
+      "name": "Edwards",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48139": {
+      "name": "Ellis",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48143": {
+      "name": "Erath",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48145": {
+      "name": "Falls",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "EAST": 0.0345,
+        "NCENT": 0.9531,
+        "SCENT": 0.0124
+      },
+      "zone": "North"
+    },
+    "48147": {
+      "name": "Fannin",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NCENT": 0.0649,
+        "NORTH": 0.9351
+      },
+      "zone": "North"
+    },
+    "48149": {
+      "name": "Fayette",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48151": {
+      "name": "Fisher",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48153": {
+      "name": "Floyd",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48155": {
+      "name": "Foard",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48157": {
+      "name": "Fort Bend",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48159": {
+      "name": "Franklin",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48161": {
+      "name": "Freestone",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 0.9686,
+        "NCENT": 0.0314
+      },
+      "zone": "Northeast"
+    },
+    "48163": {
+      "name": "Frio",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SCENT": 0.006,
+        "SOUTH": 0.994
+      },
+      "zone": "South"
+    },
+    "48167": {
+      "name": "Galveston",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48169": {
+      "name": "Garza",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48171": {
+      "name": "Gillespie",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48173": {
+      "name": "Glasscock",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48175": {
+      "name": "Goliad",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "COAST": 0.0463,
+        "SCENT": 0.0377,
+        "SOUTH": 0.916
+      },
+      "zone": "South"
+    },
+    "48177": {
+      "name": "Gonzales",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48179": {
+      "name": "Gray",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48181": {
+      "name": "Grayson",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NCENT": 0.0145,
+        "NORTH": 0.9855
+      },
+      "zone": "North"
+    },
+    "48185": {
+      "name": "Grimes",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "COAST": 0.0121,
+        "EAST": 0.9879
+      },
+      "zone": "Northeast"
+    },
+    "48187": {
+      "name": "Guadalupe",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48191": {
+      "name": "Hall",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48193": {
+      "name": "Hamilton",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48197": {
+      "name": "Hardeman",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48201": {
+      "name": "Harris",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48207": {
+      "name": "Haskell",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 0.8724,
+        "WEST": 0.1276
+      },
+      "zone": "North"
+    },
+    "48209": {
+      "name": "Hays",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48213": {
+      "name": "Henderson",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 0.8633,
+        "NCENT": 0.1367
+      },
+      "zone": "Northeast"
+    },
+    "48215": {
+      "name": "Hidalgo",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48217": {
+      "name": "Hill",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48221": {
+      "name": "Hood",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48223": {
+      "name": "Hopkins",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 0.989,
+        "NCENT": 0.011
+      },
+      "zone": "Northeast"
+    },
+    "48225": {
+      "name": "Houston",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48227": {
+      "name": "Howard",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48231": {
+      "name": "Hunt",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "EAST": 0.008,
+        "NCENT": 0.95,
+        "NORTH": 0.042
+      },
+      "zone": "North"
+    },
+    "48235": {
+      "name": "Irion",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48237": {
+      "name": "Jack",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.8438,
+        "NORTH": 0.1562
+      },
+      "zone": "North"
+    },
+    "48239": {
+      "name": "Jackson",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48243": {
+      "name": "Jeff Davis",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48247": {
+      "name": "Jim Hogg",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48249": {
+      "name": "Jim Wells",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48251": {
+      "name": "Johnson",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48253": {
+      "name": "Jones",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48255": {
+      "name": "Karnes",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48257": {
+      "name": "Kaufman",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "EAST": 0.0251,
+        "NCENT": 0.9749
+      },
+      "zone": "North"
+    },
+    "48259": {
+      "name": "Kendall",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 0.9024,
+        "WEST": 0.0976
+      },
+      "zone": "South_Central"
+    },
+    "48261": {
+      "name": "Kenedy",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48263": {
+      "name": "Kent",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 0.6238,
+        "WEST": 0.3762
+      },
+      "zone": "North"
+    },
+    "48265": {
+      "name": "Kerr",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "SCENT": 0.1071,
+        "WEST": 0.8929
+      },
+      "zone": "West"
+    },
+    "48267": {
+      "name": "Kimble",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48269": {
+      "name": "King",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48271": {
+      "name": "Kinney",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48273": {
+      "name": "Kleberg",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48275": {
+      "name": "Knox",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48277": {
+      "name": "Lamar",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48281": {
+      "name": "Lampasas",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "NCENT": 0.0868,
+        "WEST": 0.9132
+      },
+      "zone": "West"
+    },
+    "48283": {
+      "name": "La Salle",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48285": {
+      "name": "Lavaca",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48287": {
+      "name": "Lee",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48289": {
+      "name": "Leon",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48293": {
+      "name": "Limestone",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "EAST": 0.0512,
+        "NCENT": 0.9488
+      },
+      "zone": "North"
+    },
+    "48297": {
+      "name": "Live Oak",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SCENT": 0.0505,
+        "SOUTH": 0.9495
+      },
+      "zone": "South"
+    },
+    "48299": {
+      "name": "Llano",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "SCENT": 0.0345,
+        "WEST": 0.9655
+      },
+      "zone": "West"
+    },
+    "48301": {
+      "name": "Loving",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48303": {
+      "name": "Lubbock",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48305": {
+      "name": "Lynn",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 0.6545,
+        "NORTH": 0.3455
+      },
+      "zone": "West"
+    },
+    "48307": {
+      "name": "McCulloch",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48309": {
+      "name": "McLennan",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48311": {
+      "name": "McMullen",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48313": {
+      "name": "Madison",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48317": {
+      "name": "Martin",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48319": {
+      "name": "Mason",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48321": {
+      "name": "Matagorda",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48323": {
+      "name": "Maverick",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48325": {
+      "name": "Medina",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 0.9607,
+        "SOUTH": 0.0238,
+        "WEST": 0.0155
+      },
+      "zone": "South_Central"
+    },
+    "48327": {
+      "name": "Menard",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48329": {
+      "name": "Midland",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48331": {
+      "name": "Milam",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.0953,
+        "SCENT": 0.9047
+      },
+      "zone": "South_Central"
+    },
+    "48333": {
+      "name": "Mills",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9563,
+        "WEST": 0.0437
+      },
+      "zone": "North"
+    },
+    "48335": {
+      "name": "Mitchell",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48337": {
+      "name": "Montague",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NCENT": 0.0008,
+        "NORTH": 0.9992
+      },
+      "zone": "North"
+    },
+    "48339": {
+      "name": "Montgomery",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 0.962,
+        "EAST": 0.038
+      },
+      "zone": "Houston"
+    },
+    "48345": {
+      "name": "Motley",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48347": {
+      "name": "Nacogdoches",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48349": {
+      "name": "Navarro",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "EAST": 0.0754,
+        "NCENT": 0.9246
+      },
+      "zone": "North"
+    },
+    "48353": {
+      "name": "Nolan",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48355": {
+      "name": "Nueces",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48359": {
+      "name": "Oldham",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48363": {
+      "name": "Palo Pinto",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48367": {
+      "name": "Parker",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48371": {
+      "name": "Pecos",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48375": {
+      "name": "Potter",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48377": {
+      "name": "Presidio",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48379": {
+      "name": "Rains",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 0.9312,
+        "NCENT": 0.0688
+      },
+      "zone": "Northeast"
+    },
+    "48383": {
+      "name": "Reagan",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48385": {
+      "name": "Real",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48387": {
+      "name": "Red River",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48389": {
+      "name": "Reeves",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48391": {
+      "name": "Refugio",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48393": {
+      "name": "Roberts",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48395": {
+      "name": "Robertson",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 0.959,
+        "NCENT": 0.041
+      },
+      "zone": "Northeast"
+    },
+    "48397": {
+      "name": "Rockwall",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48399": {
+      "name": "Runnels",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48401": {
+      "name": "Rusk",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48409": {
+      "name": "San Patricio",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48411": {
+      "name": "San Saba",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48413": {
+      "name": "Schleicher",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48415": {
+      "name": "Scurry",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48417": {
+      "name": "Shackelford",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.7239,
+        "WEST": 0.2761
+      },
+      "zone": "North"
+    },
+    "48423": {
+      "name": "Smith",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48425": {
+      "name": "Somervell",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48427": {
+      "name": "Starr",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48429": {
+      "name": "Stephens",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48431": {
+      "name": "Sterling",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48433": {
+      "name": "Stonewall",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 0.8841,
+        "WEST": 0.1159
+      },
+      "zone": "North"
+    },
+    "48435": {
+      "name": "Sutton",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48437": {
+      "name": "Swisher",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48439": {
+      "name": "Tarrant",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48441": {
+      "name": "Taylor",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48443": {
+      "name": "Terrell",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48447": {
+      "name": "Throckmorton",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9586,
+        "NORTH": 0.0286,
+        "WEST": 0.0129
+      },
+      "zone": "North"
+    },
+    "48449": {
+      "name": "Titus",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48451": {
+      "name": "Tom Green",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48453": {
+      "name": "Travis",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 1.0
+      },
+      "zone": "South_Central"
+    },
+    "48461": {
+      "name": "Upton",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48463": {
+      "name": "Uvalde",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "WEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48465": {
+      "name": "Val Verde",
+      "weather_zone": "WEST",
+      "weather_zone_shares": {
+        "FWEST": 0.1901,
+        "WEST": 0.8099
+      },
+      "zone": "West"
+    },
+    "48467": {
+      "name": "Van Zandt",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 0.9429,
+        "NCENT": 0.0571
+      },
+      "zone": "Northeast"
+    },
+    "48469": {
+      "name": "Victoria",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 0.9507,
+        "SCENT": 0.0493
+      },
+      "zone": "Houston"
+    },
+    "48471": {
+      "name": "Walker",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48473": {
+      "name": "Waller",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 0.994,
+        "EAST": 0.006
+      },
+      "zone": "Houston"
+    },
+    "48475": {
+      "name": "Ward",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48477": {
+      "name": "Washington",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "EAST": 0.0035,
+        "SCENT": 0.9965
+      },
+      "zone": "South_Central"
+    },
+    "48479": {
+      "name": "Webb",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48481": {
+      "name": "Wharton",
+      "weather_zone": "COAST",
+      "weather_zone_shares": {
+        "COAST": 1.0
+      },
+      "zone": "Houston"
+    },
+    "48483": {
+      "name": "Wheeler",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "Panhandle"
+    },
+    "48485": {
+      "name": "Wichita",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48487": {
+      "name": "Wilbarger",
+      "weather_zone": "NORTH",
+      "weather_zone_shares": {
+        "NORTH": 1.0
+      },
+      "zone": "North"
+    },
+    "48489": {
+      "name": "Willacy",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48491": {
+      "name": "Williamson",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.0272,
+        "SCENT": 0.9728
+      },
+      "zone": "South_Central"
+    },
+    "48493": {
+      "name": "Wilson",
+      "weather_zone": "SCENT",
+      "weather_zone_shares": {
+        "SCENT": 0.9858,
+        "SOUTH": 0.0142
+      },
+      "zone": "South_Central"
+    },
+    "48495": {
+      "name": "Winkler",
+      "weather_zone": "FWEST",
+      "weather_zone_shares": {
+        "FWEST": 1.0
+      },
+      "zone": "West"
+    },
+    "48497": {
+      "name": "Wise",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 0.9697,
+        "NORTH": 0.0303
+      },
+      "zone": "North"
+    },
+    "48499": {
+      "name": "Wood",
+      "weather_zone": "EAST",
+      "weather_zone_shares": {
+        "EAST": 1.0
+      },
+      "zone": "Northeast"
+    },
+    "48503": {
+      "name": "Young",
+      "weather_zone": "NCENT",
+      "weather_zone_shares": {
+        "NCENT": 1.0
+      },
+      "zone": "North"
+    },
+    "48505": {
+      "name": "Zapata",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    },
+    "48507": {
+      "name": "Zavala",
+      "weather_zone": "SOUTH",
+      "weather_zone_shares": {
+        "SOUTH": 1.0
+      },
+      "zone": "South"
+    }
+  },
+  "retrieved": "2026-10-16",
+  "unassigned": {
+    "48069": "Castro",
+    "48189": "Hale",
+    "48369": "Parmer",
+    "48381": "Randall"
+  }
+}

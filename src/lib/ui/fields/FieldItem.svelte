@@ -1,9 +1,31 @@
+<script lang="ts" module>
+  import type { GeoRole } from '../../core/types';
+
+  /** Menu and badge labels per geographic role (Tableau's names; `ercot-zone` is this app's). */
+  export const GEO_ROLE_LABEL: Record<GeoRole, string> = {
+    country: 'Country', 'us-state': 'US State', 'us-county': 'US County', 'ercot-zone': 'ERCOT zone',
+    latitude: 'Latitude', longitude: 'Longitude',
+  };
+
+  /** Area roles draw a globe; latitude/longitude draw a pin (docs/TABLEAU-SPEC.md §1.1 geographic glyph). */
+  export function geoGlyph(role: GeoRole): 'globe' | 'pin' {
+    return role === 'latitude' || role === 'longitude' ? 'pin' : 'globe';
+  }
+
+  /** Inline SVG paths of the two geo glyphs (24-unit box; `shared/Icon.svelte` has no geo icons yet, T5 seam). */
+  const GEO_PATH: Record<'globe' | 'pin', string> = {
+    globe: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 9h-3a15 15 0 0 0-1.3-5.6A8 8 0 0 1 18.9 11zM12 4.1c.9 1.2 1.7 3.5 1.9 6.9h-3.8c.2-3.4 1-5.7 1.9-6.9zM9.4 5.4A15 15 0 0 0 8.1 11h-3a8 8 0 0 1 4.3-5.6zM5.1 13h3c.1 2.1.6 4 1.3 5.6A8 8 0 0 1 5.1 13zM12 19.9c-.9-1.2-1.7-3.5-1.9-6.9h3.8c-.2 3.4-1 5.7-1.9 6.9zm2.6-1.3a15 15 0 0 0 1.3-5.6h3a8 8 0 0 1-4.3 5.6z',
+    pin: 'M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z',
+  };
+</script>
+
 <script lang="ts">
   /**
-   * One row of the data pane: type icon in its `--type-*` colour, the field
-   * name, a cardinality/null hint, and the caret that opens the field menu.
-   * The row is a drag source (`use:draggable`); Enter/Space or the
-   * context-menu key open the menu (keyboard "Add to…").
+   * One row of the data pane: type icon in its `--type-*` colour (a globe or
+   * pin when the field has a geographic role, v2), the field name, a
+   * cardinality/null hint, and the caret that opens the field menu. The row
+   * is a drag source (`use:draggable`); Enter/Space or the context-menu key
+   * open the menu (keyboard "Add to…").
    */
   import type { FieldMeta, Role } from '../../core/types';
   import Icon, { typeIcon } from '../shared/Icon.svelte';
@@ -13,12 +35,15 @@
   let {
     meta,
     role,
+    geoRole = meta.geoRole ?? null,
     selected = false,
     onMenu,
   }: {
     meta: FieldMeta;
     /** Effective role (after `typeOverrides`), which decides the group. */
     role: Role;
+    /** Effective geographic role (after `typeOverrides`); defaults to the inferred one. */
+    geoRole?: GeoRole | null;
     /** Tap-to-place selection (phones). */
     selected?: boolean;
     onMenu: (meta: FieldMeta, anchor: HTMLElement) => void;
@@ -53,16 +78,23 @@
   class:field--warn={meta.dateAmbiguous || meta.parseErrors > 0}
   role="button"
   tabindex="0"
-  aria-label="{meta.name}, {meta.type} {role}"
+  aria-label="{meta.name}, {meta.type} {role}{geoRole ? `, ${GEO_ROLE_LABEL[geoRole]}` : ''}"
   aria-haspopup="menu"
   title={hint}
   data-field={meta.name}
+  data-geo-role={geoRole ?? undefined}
   bind:this={el}
   use:draggable={() => fieldPayload(meta.name)}
   onkeydown={onKey}
   oncontextmenu={(e) => { e.preventDefault(); if (el) onMenu(meta, el); }}
 >
-  <span class="field__type field__type--{typeClass}" aria-hidden="true"><Icon name={typeIcon(meta.type)} /></span>
+  {#if geoRole}
+    <span class="field__type field__type--geo" aria-hidden="true" title={GEO_ROLE_LABEL[geoRole]}>
+      <svg class="field__geo" viewBox="0 0 24 24"><path d={GEO_PATH[geoGlyph(geoRole)]} fill="currentColor" /></svg>
+    </span>
+  {:else}
+    <span class="field__type field__type--{typeClass}" aria-hidden="true"><Icon name={typeIcon(meta.type)} /></span>
+  {/if}
   <span class="field__name">{meta.name}</span>
   {#if meta.highCardinality}<span class="field__badge" title="High cardinality: needs a Top N filter on a discrete axis">∞</span>{/if}
   {#if meta.dateAmbiguous}<span class="field__badge field__badge--warn" title="Day/month order ambiguous">?</span>{/if}
@@ -106,6 +138,8 @@
   .field__type--number { color: var(--type-number); }
   .field__type--date { color: var(--type-date); }
   .field__type--boolean { color: var(--type-boolean); }
+  .field__type--geo { color: var(--info); }
+  .field__geo { width: 1.1em; height: 1.1em; display: block; }
   .field__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .field--measure .field__name { color: var(--pill-continuous-text); }
   .field--dimension .field__name { color: var(--pill-discrete-text); }

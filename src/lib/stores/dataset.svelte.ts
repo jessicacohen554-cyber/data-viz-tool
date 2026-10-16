@@ -10,7 +10,7 @@
  * Svelte runes store; the only state here is load state (rule R-SPEC: viz
  * state lives in `spec.svelte.ts`). Pure modules never import this file.
  */
-import type { DataType, DatasetEntry, FieldMeta, LoadProgress, VizSpec } from '../core/types';
+import type { DataType, DatasetEntry, FieldMeta, GeoRole, LoadProgress, VizSpec } from '../core/types';
 import { MAX_ROWS_MOBILE, STORAGE_RECENT } from '../core/constants';
 import { createDefaultSpec } from '../core/spec-defaults';
 import { validateSpec } from '../core/validate-spec';
@@ -65,6 +65,24 @@ export interface DatasetStore {
    * override applied.
    */
   setType(field: string, type: DataType, dateFormat?: string): Promise<void>;
+  /**
+   * Change a field's geographic role (Tableau "Geographic Role", v2; T5 glue).
+   * Records `typeOverrides[field].geoRole` when the spec does not already
+   * carry it (`null` = explicitly none) and reflects the role into `meta`.
+   * The worker has no geo inference yet, so no re-parse is requested.
+   */
+  setGeoRole(field: string, role: GeoRole | null): void;
+}
+
+/**
+ * `meta` with the spec's `geoRole` overrides applied (`null` = none). The
+ * worker does not know geographic roles, so the store applies them here.
+ */
+export function applyGeoOverrides(fields: FieldMeta[], overrides: VizSpec['typeOverrides']): FieldMeta[] {
+  return fields.map((m) => {
+    const o = overrides[m.name];
+    return o && 'geoRole' in o ? { ...m, geoRole: o.geoRole ?? null } : m;
+  });
 }
 
 /** Turn a device file name into a catalog-style id (`My Data.CSV` → `my-data`). */
@@ -142,11 +160,11 @@ export function createDatasetStore(deps: DatasetStoreDeps): DatasetStore {
         onProgress: (p) => { if (seq === loadSeq) progress = p; },
       });
       if (seq !== loadSeq) return;
-      meta = loaded.meta;
       rowCount = loaded.rowCount;
       warnings = loaded.warnings;
       // Re-validate against the real fields: a stale recent spec must not reference columns that vanished.
       const chosen = chooseSpec(next.id, loaded.meta, initialSpec);
+      meta = applyGeoOverrides(loaded.meta, chosen.typeOverrides);
       deps.spec.replace(chosen, { history: false });
       ready = true;
     } catch (e) {
@@ -171,10 +189,19 @@ export function createDatasetStore(deps: DatasetStoreDeps): DatasetStore {
         await load(entry, lastSource, deps.spec.value);
         return;
       }
-      meta = reply;
+      meta = applyGeoOverrides(reply, deps.spec.value.typeOverrides);
     } catch (e) {
       error = messageOf(e);
     }
+  }
+
+  function setGeoRole(field: string, role: GeoRole | null): void {
+    const cur = deps.spec.value.typeOverrides[field];
+    const recorded = cur && 'geoRole' in cur ? (cur.geoRole ?? null) : undefined;
+    if (recorded !== role) {
+      deps.spec.patch((d) => { d.typeOverrides[field] = { ...(d.typeOverrides[field] ?? {}), geoRole: role }; });
+    }
+    meta = meta.map((m) => (m.name === field ? { ...m, geoRole: role } : m));
   }
 
   return {
@@ -190,6 +217,7 @@ export function createDatasetStore(deps: DatasetStoreDeps): DatasetStore {
     load,
     openLocal(file) { return load(localEntry(file), file); },
     setType,
+    setGeoRole,
   };
 }
 

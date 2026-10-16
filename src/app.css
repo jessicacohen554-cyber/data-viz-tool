@@ -270,7 +270,14 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
 
 .pane { min-height: 0; overflow: auto; padding: var(--space-md); }
 
+/* The chart pane is a column: header, surface (fills), footer; the surface never scrolls the card. */
+.pane--chart { display: flex; flex-direction: column; overflow: hidden; gap: var(--space-sm); }
+
 .app__bottom-bar { display: none; }
+
+/* Drag ghost (drag-controller.ts clones the source and adds this class). */
+.drag-ghost { opacity: 0.85; box-shadow: var(--drag-ghost-shadow); }
+body.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 
 @media (max-width: 900px) {
   .app__body {
@@ -279,6 +286,8 @@ button { cursor: pointer; background: none; border: none; padding: 0; }
     padding: var(--space-sm);
     padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
   }
+  .pane { padding: var(--space-sm); }
+  /* Desktop panes stay mounted (their drag subscriptions ignore events while hidden, S4 seam 5). */
   .pane--fields, .pane--shelves { display: none; }
   .app__bottom-bar {
     display: grid;

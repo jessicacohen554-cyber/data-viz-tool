@@ -22,11 +22,14 @@
 
   let {
     meta = [],
+    showMain = true,
     showMarks = true,
     onFormat,
     onFilter,
   }: {
     meta?: FieldMeta[];
+    /** Render Columns / Rows / Filters (off in the phone Marks sheet, which shows only the Marks card). */
+    showMain?: boolean;
     /** Render the Marks card below the main shelves (off when it sits in its own sheet). */
     showMarks?: boolean;
     /** Open the Format dialog (S5) for a pill. */
@@ -96,7 +99,7 @@
 </script>
 
 <div class="shelves" class:shelves--armed={armed} bind:this={root}>
-  {#each MAIN_SHELVES as id (id)}
+  {#each showMain ? MAIN_SHELVES : [] as id (id)}
     <Shelf
       {id}
       label={SHELF_LABEL[id]}

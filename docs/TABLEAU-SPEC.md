@@ -55,7 +55,8 @@ parses every sampled value wins and is stored in `FieldMeta.dateFormat`
 | 2 | `yyyy-MM-ddTHH:mm:ss` | `2024-02-05T14:07:09` | ISO, naive |
 | 3 | `yyyy-MM-dd HH:mm:ss` | `2024-02-05 14:07:09` | optional `.SSS` |
 | 4 | `yyyy-MM-dd HH:mm` | `2024-02-05 14:07` | |
-| 5 | `yyyy-MM-dd` | `2024-02-05` | the ERCOT files |
+| 4a | `yyyy-MM-dd'T'HH:mm` | `2024-02-05T14:07` | ISO without seconds (the ERCOT hourly `timestamp`); added by S1, recorded by S6 |
+| 5 | `yyyy-MM-dd` | `2024-02-05` | the ERCOT daily file |
 | 6 | `yyyyMMdd` | `20240205` | only when every value is 8 digits **and** a valid date (else integer wins at step 2, so this fires only after a type override) |
 | 7 | `MM/dd/yyyy HH:mm:ss` | `02/05/2024 14:07:09` | `M/d` single digits accepted; D/M rule below |
 | 8 | `MM/dd/yyyy HH:mm` | `02/05/2024 14:07` | |
@@ -85,7 +86,8 @@ override pattern; 00–68 → 2000–2068, 69–99 → 1969–1999, as Tableau).
 
 `rowCount`, `nullCount`, `cardinality` (distinct non-null; `highCardinality`
 when > 5,000 or > 50% of rows), `min`/`max` (numbers and dates), `topValues`
-(10 most frequent `[label, count]`), `parseErrors`.
+(the `TOP_VALUES_LIMIT` = 20 most frequent `[label, count]`; code wins over
+the 10 this section first said, R-TRUTH), `parseErrors`.
 
 ## 2. Roles
 
@@ -226,6 +228,15 @@ Filters AND together; one filter per field (adding another replaces).
 Filters apply before aggregation; Top N is evaluated with inner aggregate
 then mask (plan §9).
 
+**Defaults on drop** (`src/lib/ui/shelves/drop-rules.ts` `defaultFilter`): a
+field landing on the Filters shelf gets a pass-all entry before the dialog
+opens — a date or date-treated pill an open `dateRange` (`from`/`to` null,
+`level` = the pill's level, else `day`); a measure or numeric field an open
+`range` (`min`/`max` null, `includeNull: false`); anything else a
+`categorical` with `mode: 'exclude'`, `values: []`, `includeNull: true`. The
+Filter dialog opens right after the drop so the user refines it (Tableau
+opens the dialog too; it has no pass-all interim state — §10).
+
 ## 7. Number formatting (the Format dialog)
 
 `FormatSpec = { kind, decimals, thousands, units, prefix, suffix, negative,
@@ -239,7 +250,7 @@ dialog shows the options of the selected `kind` only.
 |---|---|---|---|
 | `automatic` | Automatic | none | thousands on; `integer` storage → 0 decimals, else up to 2 with trailing zeros trimmed; on an **axis** units `auto`; `negative '-'` |
 | `number` | Number (Standard) | none | thousands on, 2 decimals, no units, `negative '-'` |
-| `number` + any option set | Number (Custom) | `decimals` 0–15, `negative`, `units`, `prefix`, `suffix`, `thousands` | decimals 2, `-`, `none`, ``, ``, on |
+| `number` + any option set | Number (Custom) | `decimals` 0–10 (the contract's `FormatSpec.decimals` range; Tableau allows 15 — §10), `negative`, `units`, `prefix`, `suffix`, `thousands` | decimals 2, `-`, `none`, ``, ``, on |
 | `currency` | Currency (Standard / Custom) | `currency` (ISO 4217, default `USD`), `decimals`, `negative`, `units`, `thousands` | locale symbol, 2 decimals, `-` |
 | `scientific` | Scientific | `decimals` | 2 → mantissa with 2 decimals, exponent `E±dd` |
 | `percent` | Percentage | `decimals`, `thousands` | value × 100, 2 decimals, `%` suffix |
@@ -379,6 +390,9 @@ continuous pills **C**, plus per-shelf constraints. The chart picker:
 | Calculated fields | Calculations, LOD, table calcs | none; `calcFields` slot reserved | D-8 |
 | ATTR, STDEVP, VARP, PERCENTILE | available | not shipped | §3 |
 | Week | locale week (en-US Sunday-start, week 1 = Jan 1) | **ISO 8601** week, Monday-start | deterministic across devices |
+| Number (Custom) decimals | 0–15 | 0–10 (`FormatSpec.decimals`, §7.1) | contract range; a change bumps `SPEC_VERSION` |
+| Filter on drop | the dialog opens; no filter exists until it is applied | a pass-all `FilterSpec` is written first, then the dialog opens (§6.2) | one entry per Filters pill is a contract invariant (`VIZSPEC.md`) |
+| Field list top values | n/a | `TOP_VALUES_LIMIT` = 20 (§1.3) | code wins |
 | Null tokens | only the empty cell is null | also `NULL`, `NA`, `N/A`, `NaN`, `#N/A` | exported CSVs carry these; §1.2 |
 | Thousands / currency in numbers | `1,234` and `$1,234` may parse as numbers (locale) | strings | no locale-guessing in the parser |
 | Time of day column | parses as datetime on 1899-12-30 | datetime on 1970-01-01 | epoch storage |

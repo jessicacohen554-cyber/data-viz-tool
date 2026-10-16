@@ -9,7 +9,26 @@ or from a file you open on the device, which is parsed in your browser and
 never uploaded. Everything heavy runs in a Web Worker on a columnar engine, so
 a ~430K-row file stays responsive.
 
-![screenshot placeholder — the worksheet with a pill on Columns and Rows](docs/screenshot-placeholder.png)
+![Desktop: the 2024 ERCOT hourly file with zone on Columns and SUM(price_usd_mwh) on Rows as a bar chart](docs/screenshots/desktop.png)
+
+| Phone, chart first | Phone, the Shelves sheet |
+|---|---|
+| ![Phone: the same bar chart filling the viewport above the Data / Shelves / Marks / Chart bar](docs/screenshots/phone.png) | ![Phone: the Shelves bottom sheet with the zone and SUM(price_usd_mwh) pills](docs/screenshots/phone-shelves.png) |
+
+## Use it
+
+1. **Dataset** (top right, or the picker that opens on first load): choose a
+   catalog file or **Open CSV from device**.
+2. Drag a field from the **Data** pane onto **Columns** or **Rows** (on a
+   phone: tap the field, then tap the shelf). A dimension × measure becomes a
+   bar chart; **Show Me** lists every chart the current pills can drive and
+   rearranges them when you pick one.
+3. Right-click (or the caret on) a pill for aggregation, date level,
+   discrete/continuous, sort, bin, **Filter…** and **Format…**; a field's
+   caret converts it or changes its data type.
+4. **Views** saves the worksheet in this browser and copies a share link; the
+   URL hash always carries the current worksheet. **Export** gives the chart
+   as PNG, the aggregated table as CSV or the view as JSON (and imports one).
 
 ## Run on desktop
 
@@ -26,14 +45,14 @@ Double-click `run-viz.bat` (Windows) or run `./run-viz.sh` (macOS / Linux).
 ## Add your own CSV
 
 1. Drop the file into `data/datasets/`.
-2. Restart the launcher, or hit `GET /api/manifest` once — the catalog picks
-   it up (the manifest records id, file, name, bytes, rows, columns, sha1,
-   mtime).
+2. Restart the launcher, or press **Refresh catalog** in the dataset picker
+   (it calls `GET /api/manifest`) — the catalog records id, file, name, bytes,
+   rows, columns, sha1, mtime.
 3. Or skip the folder entirely: **Open CSV from device** in the dataset picker
    reads the file in the browser.
 
 Types are inferred from the first 5,000 rows (`docs/TABLEAU-SPEC.md` §1); you
-can change a field's type and role from its pill menu.
+can change a field's type and role from its menu in the Data pane.
 
 ## Prototype on your phone
 
@@ -42,9 +61,10 @@ Every merge to `main` deploys to GitHub Pages:
 `https://jessicacohen554-cyber.github.io/data-viz-tool/`
 
 Phone layout is chart-first: the chart fills the viewport and Data / Shelves /
-Marks / Chart-type open as bottom sheets. Drag pills, or tap a pill and then
-tap a shelf. The 2024 ERCOT file (~5 MB) is the phone default; the full
-2019–2025 file (~35 MB) is the stress test and shows its size in the picker.
+Marks / Chart open as bottom sheets. Drag pills (long-press), or tap a field
+and then tap a shelf. The 2024 ERCOT file (~5 MB) is the phone default; the
+full 2019–2025 file (~35 MB) is the stress test and shows its size in the
+picker.
 
 ## Develop
 
@@ -55,10 +75,20 @@ npm test          # vitest run (unit + boundary + palette validation)
 npm run check     # svelte-check + tsc
 python -m pytest tests/py -q      # launcher, manifest, convert script
 PERF=1 npm run perf               # engine budgets on the full ERCOT file
+npm run build && node tests/e2e/smoke.mjs      # browser smoke on dist/ (Chromium)
+npm run build && node tests/e2e/perf-430k.mjs  # in-browser timings on the 430K file
 ```
 
+The two `tests/e2e` scripts are run by hand, not by `npm test` or CI: they
+need a built `dist/`, Python for the launcher and a Chromium that Playwright
+can find (`PLAYWRIGHT_BROWSERS_PATH`, or `CHROMIUM=<path>`); `playwright`
+itself is resolved from the project, `PLAYWRIGHT_MODULE` or the global npm
+root.
+
 Rules, layout and the pre-push gate: [`CLAUDE.md`](CLAUDE.md) and
-[`CONVENTIONS.md`](CONVENTIONS.md). Docs index: [`docs/README.md`](docs/README.md).
+[`CONVENTIONS.md`](CONVENTIONS.md). How it is built:
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Docs index:
+[`docs/README.md`](docs/README.md).
 
 ## Data
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-16 — s6-integration: the working app, browser smoke, perf result
+
+Branch `claude/s6-integration` from `80a1545`. `src/App.svelte` replaces the S0 skeleton: TopNav
+slots host the dataset picker, saved views and export menu; FieldPanel, ShelfPanel + Marks and
+ChartCanvas fill the three desktop panes; phones get Data / Shelves / Marks / Chart bottom sheets.
+Boot restores a URL-hash spec by loading its catalog dataset, else opens the picker; dialog state
+lives in `ui.dialog`; an empty text-table worksheet shows the raw first 200 rows through
+`client.rows()`; a drop on it switches to the Show Me suggestion (Tableau's Automatic mark).
+Seams closed from the S1–S5 handoff (`docs/records/s6/HANDOFF-s6-integration-2026-10-16.md`):
+load requests and query plans are `$state.snapshot`ed before `postMessage` (a Svelte proxy cannot
+be cloned — the picker's manifest and the spec's `filters` both reached the worker as proxies);
+`ui.toast` reads its list untracked so effects may toast; `ChartCanvas` keeps its ECharts instance
+in `$state.raw` so the option effect runs once `init` has happened (host div and first result land
+in the same flush); the query store refines plan needs with `needsFor(spec)`; `vite.config.ts`
+resolves the `$core`/`$stores`/… aliases for Vitest. QA: `tests/e2e/smoke.mjs` (Playwright,
+pre-installed Chromium, desktop 1280×800 and phone 390×844 against the built `dist/` served by
+`tools/launcher.py`: pick the 2024 file, drop `zone` and `price_usd_mwh` with synthetic pointer
+events, bar → line → heatmap → treemap, hash round-trip, CSV export, saved view) and
+`tests/e2e/perf-430k.mjs` (in-browser timings on the 430K-row file). Perf recorded in
+`docs/records/s6/RESULT-perf-2026-10-16.md`. Docs: `docs/ARCHITECTURE.md` completed, TABLEAU-SPEC
+seam rows (`yyyy-MM-dd'T'HH:mm`, top values 20, decimals 0–10, filter-drop defaults), README
+with screenshots.
+
 ## 2026-10-15 — s0-foundation: scaffold, contract, tooling, docs
 
 The foundation shard of the build plan (`docs/records/s0/DECISION-CARDS-build-plan-2026-10-15.md`;

@@ -6,7 +6,7 @@ import { meta } from './spec-defaults.test';
 describe('validateSpec', () => {
   it('rejects non-objects and wrong versions', () => {
     expect(validateSpec(null)).toEqual(['spec is not an object']);
-    expect(validateSpec({ ...createDefaultSpec('d'), version: 2 })[0]).toMatch(/version/);
+    expect(validateSpec({ ...createDefaultSpec('d'), version: 99 })[0]).toMatch(/version/);
   });
 
   it('enforces single-pill shelves', () => {

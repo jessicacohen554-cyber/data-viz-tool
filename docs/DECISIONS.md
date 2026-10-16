@@ -35,3 +35,15 @@ Dashboards and multiple sheets (D-7); calculated fields (D-8, slot reserved);
 dual axis; Pages shelf; geographic types and maps; dark theme (D-6, tokens
 ready); Parquet or JSON input; any server-side persistence. A lane that needs
 one of these writes a `DECISION-CARD`, it does not build it.
+
+## v0.2 rulings (2026-10-16, decision cards in the parent session)
+
+| # | Ruling | What it unblocks / requires |
+|---|---|---|
+| D-13 | **Maps: US states + world + lat/lon, plus US counties + ERCOT zones.** GeoJSON bundled under `public/geo/` with provenance; ERCOT zones derived from county polygons via the market-simulator weather-zone mapping, never guessed. | `map-choropleth`, `map-symbol`; `GeoRole` on fields; `geoLayer` on the spec |
+| D-14 | **Fonts: curated Google Fonts list**, loaded on demand, system fallback offline. | `FONT_FAMILIES` in constants; `StyleSpec.fontFamily` |
+| D-15 | **Probability envelope: both modes** — percentile bands computed from rows per x, and explicit low/high(/mid) columns. | `Aggregation` percentiles; `QueryPlan.bands`; `EnvelopeSpec` |
+| D-16 | **Tableau-style formatting: reference lines & bands, trend lines, full style panel, annotations** (all four selected). | `ReferenceLine`, `TrendLine`, `StyleSpec`, `Annotation` on the spec |
+| D-17 | **Maps with different marks and icon sets, including a power-generation set** (owner, mid-session). | `MarkSettings.mapMark`, `shapeSet`, `shapeOverrides`; `src/lib/icons` |
+| D-18 | **Many more palettes: pastels, neons, vibrant, muted, earthy and more** (owner, mid-session). | palette families in `src/lib/palette` |
+| D-19 | **Dual axis is in** (owner request; the earlier "no dual axis" MVP note is superseded). | `Pill.axis`, `axes.y2`, `axes.synchronized`, `combo` |

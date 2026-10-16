@@ -23,9 +23,10 @@ export type Role = 'dimension' | 'measure';
 /** Discrete = blue pill (headers); continuous = green pill (axis). */
 export type Continuity = 'discrete' | 'continuous';
 
-/** Aggregations; `none` disaggregates to row level. */
+/** Aggregations; `none` disaggregates to row level. Percentiles are Tableau's PERCENTILE at fixed levels. */
 export type Aggregation =
-  | 'sum' | 'avg' | 'min' | 'max' | 'count' | 'countd' | 'median' | 'stdev' | 'var' | 'none';
+  | 'sum' | 'avg' | 'min' | 'max' | 'count' | 'countd' | 'median' | 'stdev' | 'var' | 'none'
+  | 'p05' | 'p10' | 'p25' | 'p75' | 'p90' | 'p95';
 
 /** Date hierarchy levels (Tableau: Year ▸ Quarter ▸ Month ▸ Week ▸ Day ▸ Hour ▸ Minute). */
 export type DateLevel = 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour' | 'minute';
@@ -50,10 +51,16 @@ export type ChartTypeId =
   | 'radar' | 'parallel' | 'sankey'
   | 'slope' | 'bump'
   | 'candlestick'
-  | 'kpi' | 'text-table';
+  | 'kpi' | 'text-table'
+  // v2 additions (registered by the v0.2 charts shard; see PENDING_CHART_TYPE_IDS)
+  | 'area-stacked' | 'area-100' | 'combo' | 'envelope'
+  | 'map-choropleth' | 'map-symbol';
 
 /** How a column is stored in the worker's column store. */
 export type Storage = 'dict' | 'f64' | 'i32' | 'date' | 'bool';
+
+/** Tableau geographic roles (v2). A dimension with a geo role can drive a map; lat/lon are measures. */
+export type GeoRole = 'country' | 'us-state' | 'us-county' | 'ercot-zone' | 'latitude' | 'longitude';
 
 // ---------------------------------------------------------------------------
 // Dataset catalog
@@ -124,6 +131,8 @@ export interface FieldMeta {
   parseErrors: number;
   /** Inference confidence 0..1. */
   confidence: number;
+  /** Geographic role inferred from the name and values (v2); null when none. */
+  geoRole?: GeoRole | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +180,8 @@ export interface Pill {
   format?: FormatSpec;
   /** Display name override. */
   alias?: string;
+  /** Measure pills on the value shelf: which y axis (v2, dual axis). Default `primary`. */
+  axis?: 'primary' | 'secondary';
 }
 
 /** Filter shelf entries, keyed by the pill they belong to. */
@@ -234,8 +245,85 @@ export interface MarkSettings {
   barGap: number;
   /** Line/area treatment of null groups. */
   nullHandling: 'break' | 'connect' | 'zero';
+  /** Icon set for the Shape shelf (v2; docs/ICONS.md). Default `basic`. */
+  shapeSet?: string;
+  /** Per-label icon overrides (label → icon id) (v2). */
+  shapeOverrides?: Record<string, string>;
+  /** Map charts: how marks are drawn (v2). */
+  mapMark?: 'fill' | 'symbol' | 'bubble' | 'heat' | 'label';
+  /** Combo chart: mark per axis (v2). */
+  markByAxis?: { primary: 'bar' | 'line' | 'area'; secondary: 'bar' | 'line' | 'area' };
   /** Chart-specific knobs (gauge.min/max/target, candlestick.upColor, treemap.depth, …). */
   extra: Record<string, unknown>;
+}
+
+/** Fonts and chrome (v2). Sizes in px; `fontScale` multiplies every size. */
+export interface StyleSpec {
+  /** Family id from FONT_FAMILIES (constants.ts); `inherit` = the app font. */
+  fontFamily: string;
+  fontScale: number;
+  title: { text?: string; size: number; weight: 400 | 500 | 600 | 700 | 800; align: 'left' | 'center' };
+  subtitle: { text?: string; size: number };
+  caption: { text?: string; size: number };
+  axis: { fontFamily?: string; size: number; titleSize: number };
+  labels: { fontFamily?: string; size: number };
+  legend: { fontFamily?: string; size: number };
+  /** Hex or `transparent`; default `transparent` (card shows through). */
+  background: string;
+  border: boolean;
+  padding: number;
+}
+
+/** A reference line or band on an axis (v2). */
+export interface ReferenceLine {
+  id: string;
+  axis: 'x' | 'y' | 'y2';
+  kind: 'constant' | 'average' | 'median' | 'min' | 'max' | 'percentile' | 'band';
+  /** `constant`: the value; `percentile`: 0..100. */
+  value?: number;
+  /** `band`: from/to as constants or statistics. */
+  from?: number | 'min' | 'average' | 'median' | 'p25';
+  to?: number | 'max' | 'average' | 'median' | 'p75';
+  label?: string;
+  color?: string;
+  dash: boolean;
+  /** Per-series (color group) or whole chart. */
+  scope: 'all' | 'per-series';
+}
+
+/** Trend line settings (v2). */
+export interface TrendLine {
+  enabled: boolean;
+  model: 'linear' | 'log' | 'exp' | 'poly';
+  /** `poly` degree 2..5. */
+  degree?: number;
+  perSeries: boolean;
+  showEquation: boolean;
+  color?: string;
+}
+
+/** A text note pinned to a data point or axis position (v2). */
+export interface Annotation {
+  id: string;
+  text: string;
+  /** Category label or epoch ms / numeric x. */
+  x: string | number;
+  y?: number;
+  seriesKey?: string;
+  /** Pixel offset of the text box from the anchor. */
+  offset: [number, number];
+}
+
+/** Probability envelope configuration (v2). */
+export interface EnvelopeSpec {
+  /** `percentile`: bands computed per x from the rows; `columns`: explicit low/high (and mid) measure pills. */
+  mode: 'percentile' | 'columns';
+  /** Nested band levels, outer first, e.g. [[5, 95], [25, 75]]. */
+  levels: Array<[number, number]>;
+  /** Field names when `mode === 'columns'`. */
+  low?: string;
+  high?: string;
+  mid?: string;
 }
 
 /** Axis settings. */
@@ -259,7 +347,7 @@ export interface LegendSpec {
 
 /** A complete visualization. */
 export interface VizSpec {
-  version: 1;
+  version: 2;
   datasetId: string;
   title: string;
   subtitle?: string;
@@ -268,14 +356,22 @@ export interface VizSpec {
   shelves: Record<ShelfId, Pill[]>;
   /** One entry per pill on the `filters` shelf. */
   filters: FilterSpec[];
-  /** User "Change Data Type / Convert to Dimension" overrides, by field name. */
-  typeOverrides: Record<string, { type?: DataType; role?: Role; dateFormat?: string }>;
+  /** User "Change Data Type / Convert to Dimension / Geographic role" overrides, by field name. */
+  typeOverrides: Record<string, { type?: DataType; role?: Role; dateFormat?: string; geoRole?: GeoRole | null }>;
   palette: PaletteSelection;
   marks: MarkSettings;
-  axes: { x: AxisSpec; y: AxisSpec };
+  /** `y2` is the secondary axis for pills with `axis: 'secondary'`; `synchronized` shares the y range. */
+  axes: { x: AxisSpec; y: AxisSpec; y2: AxisSpec; synchronized: boolean };
   legend: LegendSpec;
   /** Default format per field; `Pill.format` overrides. */
   fieldFormats: Record<string, FormatSpec>;
+  style: StyleSpec;
+  referenceLines: ReferenceLine[];
+  trendLine: TrendLine;
+  annotations: Annotation[];
+  envelope?: EnvelopeSpec;
+  /** Map charts: which geo layer (`public/geo/index.json` id) draws the base. */
+  geoLayer?: string;
 }
 
 /** A named, persisted VizSpec (localStorage key `viz:views:<datasetId>`). */
@@ -330,6 +426,8 @@ export interface QueryPlan {
   limit: number;
   /** Boxplot statistics for one measure. */
   boxstats?: { measureKey: string };
+  /** Percentile bands for one measure per group (envelope `percentile` mode): levels 0..100 (v2). */
+  bands?: { measureKey: string; levels: number[] };
 }
 
 /** One result dimension: discrete → `codes` + `labels`; continuous/date-trunc/bin → `values`. */
@@ -366,6 +464,8 @@ export interface QueryResult {
   dims: ResultDim[];
   measures: ResultMeasure[];
   boxstats?: BoxStats;
+  /** One Float64Array per requested level, in `plan.bands.levels` order (v2). */
+  bands?: Float64Array[];
   scannedRows: number;
   filteredRows: number;
   truncated: boolean;

@@ -9,6 +9,7 @@
 import type { VizSpec } from './types';
 import { SPEC_VERSION } from './constants';
 import { validateSpec } from './validate-spec';
+import { defaultAxis, defaultStyle, defaultTrendLine } from './spec-defaults';
 
 const HASH_COMPRESSED = 'v';
 const HASH_PLAIN = 'j';
@@ -82,11 +83,28 @@ export async function decodeSpec(hash: string): Promise<VizSpec | null> {
   }
 }
 
-/** Upgrade older spec shapes to SPEC_VERSION. Currently a no-op; add cases as the version bumps. */
+/**
+ * Upgrade older spec shapes to SPEC_VERSION.
+ * v1 → v2: adds `axes.y2`, `axes.synchronized`, `style`, `referenceLines`,
+ * `trendLine`, `annotations` with their defaults; everything else is unchanged.
+ */
 export function migrateSpec(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
-  const v = (raw as { version?: unknown }).version;
+  const s = raw as Record<string, unknown>;
+  const v = s.version;
   if (v === SPEC_VERSION) return raw;
+  if (v === 1) {
+    const axes = (s.axes && typeof s.axes === 'object' ? s.axes : {}) as Record<string, unknown>;
+    return {
+      ...s,
+      version: 2,
+      axes: { x: axes.x ?? defaultAxis(), y: axes.y ?? defaultAxis(), y2: defaultAxis(), synchronized: false },
+      style: defaultStyle(),
+      referenceLines: [],
+      trendLine: defaultTrendLine(),
+      annotations: [],
+    };
+  }
   return raw;
 }
 

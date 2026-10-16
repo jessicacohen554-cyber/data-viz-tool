@@ -4,11 +4,11 @@
  * covers CSS; this file covers behaviour).
  */
 import type {
-  Aggregation, ChartTypeId, Continuity, DataType, DateLevel, Role, ShelfId,
+  Aggregation, ChartTypeId, Continuity, DataType, DateLevel, GeoRole, Role, ShelfId,
 } from './types';
 
 /** Bump when a VizSpec field changes shape; url-codec.ts migrates older versions. */
-export const SPEC_VERSION = 1 as const;
+export const SPEC_VERSION = 2 as const;
 
 export const DATA_TYPES: readonly DataType[] = ['string', 'number', 'integer', 'date', 'datetime', 'boolean'];
 export const ROLES: readonly Role[] = ['dimension', 'measure'];
@@ -16,13 +16,20 @@ export const CONTINUITIES: readonly Continuity[] = ['discrete', 'continuous'];
 
 /** Aggregations in Tableau menu order. */
 export const AGGREGATIONS: readonly Aggregation[] = [
-  'sum', 'avg', 'median', 'count', 'countd', 'min', 'max', 'stdev', 'var', 'none',
+  'sum', 'avg', 'median', 'count', 'countd', 'min', 'max', 'stdev', 'var',
+  'p05', 'p10', 'p25', 'p75', 'p90', 'p95', 'none',
 ];
+
+/** Percentile aggregations and their levels (0..100). */
+export const PERCENTILE_LEVEL: Readonly<Partial<Record<Aggregation, number>>> = {
+  p05: 5, p10: 10, p25: 25, median: 50, p75: 75, p90: 90, p95: 95,
+};
 
 /** Human labels for aggregations (Tableau pill prefixes). */
 export const AGGREGATION_LABEL: Record<Aggregation, string> = {
   sum: 'SUM', avg: 'AVG', median: 'MEDIAN', count: 'CNT', countd: 'CNTD',
   min: 'MIN', max: 'MAX', stdev: 'STDEV', var: 'VAR', none: '',
+  p05: 'P5', p10: 'P10', p25: 'P25', p75: 'P75', p90: 'P90', p95: 'P95',
 };
 
 /** Date hierarchy, coarse → fine. */
@@ -54,6 +61,57 @@ export const CHART_TYPE_IDS: readonly ChartTypeId[] = [
   'candlestick',
   'kpi', 'text-table',
 ];
+
+/**
+ * v2 chart ids declared in the contract but not yet in the registry. The charts
+ * shard moves each id into CHART_TYPE_IDS as it registers it; the registry test
+ * checks CHART_TYPE_IDS only, so `main` stays green while shards are in flight.
+ */
+export const PENDING_CHART_TYPE_IDS: readonly ChartTypeId[] = [
+  'area-stacked', 'area-100', 'combo', 'envelope', 'map-choropleth', 'map-symbol',
+];
+
+/** Geographic roles in menu order. */
+export const GEO_ROLES: readonly GeoRole[] = ['country', 'us-state', 'us-county', 'ercot-zone', 'latitude', 'longitude'];
+
+/** Geo layer per area role (ids in public/geo/index.json). */
+export const GEO_LAYER_FOR_ROLE: Readonly<Partial<Record<GeoRole, string>>> = {
+  country: 'world-countries', 'us-state': 'us-states', 'us-county': 'us-counties', 'ercot-zone': 'ercot-zones',
+};
+
+/**
+ * Curated font families (owner ruling D-14): loaded on demand from Google Fonts,
+ * with a system fallback stack so the app renders offline.
+ */
+export interface FontFamily { id: string; label: string; css: string; google?: string; kind: 'sans' | 'serif' | 'mono' }
+export const FONT_FAMILIES: readonly FontFamily[] = [
+  { id: 'inherit', label: 'App default (DM Sans)', css: "'DM Sans', 'Plus Jakarta Sans', 'Helvetica Neue', sans-serif", kind: 'sans' },
+  { id: 'plus-jakarta', label: 'Plus Jakarta Sans', css: "'Plus Jakarta Sans', sans-serif", google: 'Plus+Jakarta+Sans:wght@400;500;600;700;800', kind: 'sans' },
+  { id: 'inter', label: 'Inter', css: "'Inter', sans-serif", google: 'Inter:wght@400;500;600;700', kind: 'sans' },
+  { id: 'roboto', label: 'Roboto', css: "'Roboto', sans-serif", google: 'Roboto:wght@400;500;700', kind: 'sans' },
+  { id: 'lato', label: 'Lato', css: "'Lato', sans-serif", google: 'Lato:wght@400;700', kind: 'sans' },
+  { id: 'open-sans', label: 'Open Sans', css: "'Open Sans', sans-serif", google: 'Open+Sans:wght@400;600;700', kind: 'sans' },
+  { id: 'nunito', label: 'Nunito', css: "'Nunito', sans-serif", google: 'Nunito:wght@400;600;700', kind: 'sans' },
+  { id: 'ibm-plex-sans', label: 'IBM Plex Sans', css: "'IBM Plex Sans', sans-serif", google: 'IBM+Plex+Sans:wght@400;500;600', kind: 'sans' },
+  { id: 'work-sans', label: 'Work Sans', css: "'Work Sans', sans-serif", google: 'Work+Sans:wght@400;500;600', kind: 'sans' },
+  { id: 'source-serif', label: 'Source Serif 4', css: "'Source Serif 4', serif", google: 'Source+Serif+4:wght@400;600;700', kind: 'serif' },
+  { id: 'merriweather', label: 'Merriweather', css: "'Merriweather', serif", google: 'Merriweather:wght@400;700', kind: 'serif' },
+  { id: 'playfair', label: 'Playfair Display', css: "'Playfair Display', serif", google: 'Playfair+Display:wght@400;600;700', kind: 'serif' },
+  { id: 'lora', label: 'Lora', css: "'Lora', serif", google: 'Lora:wght@400;600', kind: 'serif' },
+  { id: 'jetbrains-mono', label: 'JetBrains Mono', css: "'JetBrains Mono', monospace", google: 'JetBrains+Mono:wght@400;500', kind: 'mono' },
+  { id: 'ibm-plex-mono', label: 'IBM Plex Mono', css: "'IBM Plex Mono', monospace", google: 'IBM+Plex+Mono:wght@400;500', kind: 'mono' },
+  { id: 'system', label: 'System UI', css: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", kind: 'sans' },
+  { id: 'georgia', label: 'Georgia', css: "Georgia, 'Times New Roman', serif", kind: 'serif' },
+];
+
+/** Reference line kinds in menu order. */
+export const REFERENCE_LINE_KINDS = ['constant', 'average', 'median', 'min', 'max', 'percentile', 'band'] as const;
+
+/** Trend models in menu order. */
+export const TREND_MODELS = ['linear', 'log', 'exp', 'poly'] as const;
+
+/** Default envelope levels: outer P5–P95, inner P25–P75. */
+export const DEFAULT_ENVELOPE_LEVELS: ReadonlyArray<readonly [number, number]> = [[5, 95], [25, 75]];
 
 /** Default chart for an empty worksheet. */
 export const DEFAULT_CHART: ChartTypeId = 'text-table';

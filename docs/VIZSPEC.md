@@ -97,6 +97,26 @@ filters / palette / marks / axes / chart type ───┘        │           
 | candlestick | `DAY(timestamp)` trunc | `open, close, low, high` (4 measures, in order) | — | order validated by the registry |
 | kpi | — | `AVG(price)` | — | DOM renderer |
 
+## v2 additions (2026-10-16)
+
+| Field | Purpose |
+|---|---|
+| `Pill.axis` | `primary` / `secondary` for measure pills on the value shelf (dual axis, D-19) |
+| `axes.y2`, `axes.synchronized` | secondary axis settings; share the range when synchronized |
+| `Aggregation` p05…p95 | Tableau PERCENTILE at fixed levels; `PERCENTILE_LEVEL` maps them |
+| `QueryPlan.bands` → `QueryResult.bands` | percentile bands per group for the envelope chart's `percentile` mode |
+| `EnvelopeSpec` | `percentile` (computed) or `columns` (explicit low/high/mid fields); nested `levels` |
+| `FieldMeta.geoRole`, `typeOverrides[f].geoRole`, `geoLayer` | Tableau geographic roles and the base layer id from `public/geo/index.json` |
+| `MarkSettings.shapeSet`, `shapeOverrides` | icon set for the Shape shelf (`src/lib/icons`, docs/ICONS.md) |
+| `MarkSettings.mapMark` | map marks: `fill` / `symbol` / `bubble` / `heat` / `label` |
+| `MarkSettings.markByAxis` | combo chart: bar/line/area per axis |
+| `StyleSpec` | fonts (ids from `FONT_FAMILIES`), sizes, title/subtitle/caption, background, border, padding |
+| `ReferenceLine[]` | constant/average/median/min/max/percentile lines and bands per axis |
+| `TrendLine` | linear/log/exp/poly fit, per series, with equation |
+| `Annotation[]` | pinned text notes |
+
+Chart ids added to the union: `area-stacked`, `area-100`, `combo`, `envelope`, `map-choropleth`, `map-symbol` (in `PENDING_CHART_TYPE_IDS` until the charts shard registers them).
+
 ## Versioning
 
-`SPEC_VERSION` in `constants.ts` is `1`. A shape change bumps it and adds a case to `migrateSpec()` in `url-codec.ts`; `validateSpec()` rejects anything else.
+`SPEC_VERSION` in `constants.ts` is `2`. A shape change bumps it and adds a case to `migrateSpec()` in `url-codec.ts`; `validateSpec()` rejects anything else. v1 specs (URL hashes and saved views from v0.1) migrate transparently.

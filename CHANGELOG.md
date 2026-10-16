@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-16 — v0.2 contract: dual axis, percentiles, geo roles, style, reference/trend lines, annotations, envelope, icons
+
+`VizSpec` is now version 2 (v1 specs migrate on load): `Pill.axis`, `axes.y2` + `synchronized`, `StyleSpec`, `referenceLines`, `trendLine`, `annotations`, `envelope`, `geoLayer`; `Aggregation` gains P5/P10/P25/P75/P90/P95; `FieldMeta.geoRole`; `MarkSettings.shapeSet/shapeOverrides/mapMark/markByAxis`; `QueryPlan.bands`. Six chart ids are declared pending registration (`PENDING_CHART_TYPE_IDS`). Owner rulings D-13…D-19 in `docs/DECISIONS.md`. Map assets under `public/geo/` and icon sets under `src/lib/icons/` arrive with this entry.
 ## 2026-10-16 — s6-integration: the working app, browser smoke, perf result
 
 Branch `claude/s6-integration` from `80a1545`. `src/App.svelte` replaces the S0 skeleton: TopNav

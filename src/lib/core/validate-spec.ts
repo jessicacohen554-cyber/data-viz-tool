@@ -29,6 +29,7 @@ function validatePill(pill: unknown, shelf: ShelfId, index: number, fields: Map<
       out.push(`${where}: bad date treatment`);
     }
   }
+  if (p.axis !== undefined && p.axis !== 'primary' && p.axis !== 'secondary') out.push(`${where}: bad axis`);
   if (p.bin !== undefined) {
     const b = p.bin as Record<string, unknown>;
     const ok = isRecord(b) && ((typeof b.size === 'number' && b.size > 0) || (typeof b.count === 'number' && b.count > 0));
@@ -83,7 +84,11 @@ export function validateSpec(spec: unknown, meta?: FieldMeta[]): string[] {
 
   if (!isRecord(s.palette) || !['auto', 'manual'].includes(String(s.palette.mode))) out.push('bad palette');
   if (!isRecord(s.marks)) out.push('missing marks');
-  if (!isRecord(s.axes) || !isRecord(s.axes.x) || !isRecord(s.axes.y)) out.push('missing axes');
+  if (!isRecord(s.axes) || !isRecord(s.axes.x) || !isRecord(s.axes.y) || !isRecord(s.axes.y2)) out.push('missing axes');
+  if (!isRecord(s.style)) out.push('missing style');
+  if (!Array.isArray(s.referenceLines)) out.push('missing referenceLines');
+  if (!isRecord(s.trendLine)) out.push('missing trendLine');
+  if (!Array.isArray(s.annotations)) out.push('missing annotations');
   if (!isRecord(s.legend)) out.push('missing legend');
   if (!isRecord(s.fieldFormats)) out.push('missing fieldFormats');
   if (!isRecord(s.typeOverrides)) out.push('missing typeOverrides');

@@ -12,5 +12,6 @@ One file per shard. The parent session renders `{{SHA}}` to the 40-char commit o
 | S4 | `claude/s4-shelves-drag` | `src/lib/ui/shelves/*`, `src/lib/ui/drag/*`, `src/lib/ui/fields/*`, `src/lib/ui/shared/*` | parallel |
 | S5 | `claude/s5-dialogs-flow` | `src/lib/ui/dialogs/*`, `src/lib/stores/{dataset,query,views}.svelte.ts`, `src/lib/ui/export.ts` | parallel |
 | S6 | `claude/s6-integration` | `src/App.svelte`, `src/app.css` (mobile pass), `docs/ARCHITECTURE.md`, `README.md` | last |
+| T1–T6 | `claude/t<n>-…-v2` | v0.2 shards (see T*-v2.md): engine, charts, palettes, formatting UI, geo/mark UI, integration | S0→S6 done first |
 
 Common rules every prompt carries are in `_common.md`.

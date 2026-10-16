@@ -74,6 +74,9 @@ function fixture(id: ChartTypeId): { spec: VizSpec; result: QueryResult } {
       const [o, c, l, h] = [measure('open'), measure('close'), measure('low'), measure('high')];
       return { spec: makeSpec(id, { columns: [tDay], rows: [o, c, l, h] }), result: two([resultDim(tDay.id, [day(2024, 1, 2), day(2024, 1, 1)])], [resultMeasure(o.id, [10, 11]), resultMeasure(c.id, [12, 9]), resultMeasure(l.id, [9, 8]), resultMeasure(h.id, [13, 12])]) };
     }
+    default:
+      // v2 ids (PENDING_CHART_TYPE_IDS) get their fixtures when the charts shard registers them.
+      throw new Error(`no fixture for chart id ${id}`);
   }
 }
 

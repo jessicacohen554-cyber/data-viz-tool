@@ -1,0 +1,11 @@
+SHARD T5 — geo & mark UI v2 (geo roles, map marks, shape/icon picker, envelope settings, dataset of geo layers). Repo jessicacohen554-cyber/data-viz-tool @ {{SHA}}. Model: Opus or Fable. Branch `claude/t5-geo-mark-ui-v2`.
+
+{{COMMON}}
+
+CONTEXT: contract v2 adds `GeoRole`, `geoLayer`, `MarkSettings.mapMark/shapeSet/shapeOverrides/markByAxis`, `EnvelopeSpec`. Read `src/lib/core/types.ts`, `constants.ts` (`GEO_ROLES`, `GEO_LAYER_FOR_ROLE`, `DEFAULT_ENVELOPE_LEVELS`), `docs/DECISIONS.md` D-13/D-15/D-17, `docs/ICONS.md` + `src/lib/icons/index.ts`, `public/geo/index.json` + `README.md`, `src/lib/ui/fields/FieldPanel.svelte` + `FieldItem.svelte`, `src/lib/ui/shelves/MarksCard.svelte`, `src/lib/ui/dialogs/PaletteDialog.svelte` (pattern to copy for the icon picker), `src/lib/stores/dataset.svelte.ts` (`setType` → add geoRole override path if missing; it is S5's file — small glue edit allowed, name it in the report).
+
+OWNS: `src/lib/ui/fields/*` (geo role submenu "Geographic role ▸ Country / US State / US County / ERCOT zone / Latitude / Longitude / None" writing `typeOverrides[field].geoRole` and calling `dataset.setType`-style re-inference), `src/lib/ui/shelves/MarksCard.svelte` (map mark selector fill/symbol/bubble/heat/label when the chart is a map; geo layer selector from `public/geo/index.json`; envelope settings: mode, levels chips (P5–P95, P10–P90, P25–P75), low/high/mid field pickers), `src/lib/ui/dialogs/IconPicker.svelte` (sets as rows, icons rendered from their SVG paths, per-label overrides like PaletteDialog, "Shape by" summary), `src/lib/ui/dialogs/GeoLayerPicker.svelte` (layers with bytes and key props; warns above 1 MB on `saveData`), `src/lib/stores/dataset.svelte.ts` glue for geoRole, their tests.
+
+DELIVER: the field-list geo role menu with a small globe/pin type icon for geo fields; Marks card sections that appear only when relevant (map → marks + layer; envelope → settings; Shape pill → "Icons…" button opening IconPicker); IconPicker with name-matching preview (labels from the Shape pill's profile via `client.profile`); every control patches the spec (R-SPEC).
+
+ACCEPTANCE: jsdom tests for the geo menu (override written, cleared with None), IconPicker overrides, envelope level chips; tokens only; `npm run check && npm test` green. Wiring into `App.svelte` is T6's.

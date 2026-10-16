@@ -19,6 +19,7 @@ export const DATE_LEVEL_MENU: Record<DateLevel, string> = {
 export const AGGREGATION_MENU: Record<Aggregation, string> = {
   sum: 'Sum', avg: 'Average', median: 'Median', count: 'Count', countd: 'Count (Distinct)',
   min: 'Minimum', max: 'Maximum', stdev: 'Std. Dev', var: 'Variance', none: 'Disaggregate',
+  p05: 'Percentile 5', p10: 'Percentile 10', p25: 'Percentile 25', p75: 'Percentile 75', p90: 'Percentile 90', p95: 'Percentile 95',
 };
 
 /** The name shown inside the parentheses: alias wins over the field name. */

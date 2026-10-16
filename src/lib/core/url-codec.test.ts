@@ -34,3 +34,20 @@ describe('url codec', () => {
     expect(loadRecent(store, 'viz:recent:', 'other')).toBeNull();
   });
 });
+
+describe('migration', () => {
+  it('upgrades a v1 spec to v2 with defaults and decodes it', async () => {
+    const v1 = { ...createDefaultSpec('ercot') } as unknown as Record<string, unknown>;
+    v1.version = 1;
+    v1.axes = { x: (v1.axes as { x: unknown }).x, y: (v1.axes as { y: unknown }).y };
+    delete v1.style; delete v1.referenceLines; delete v1.trendLine; delete v1.annotations;
+    const hash = 'j=' + btoa(JSON.stringify(v1)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const back = await decodeSpec(hash);
+    expect(back?.version).toBe(2);
+    expect(back?.axes.y2).toBeDefined();
+    expect(back?.axes.synchronized).toBe(false);
+    expect(back?.style.fontFamily).toBe('inherit');
+    expect(back?.referenceLines).toEqual([]);
+    expect(back?.trendLine.enabled).toBe(false);
+  });
+});

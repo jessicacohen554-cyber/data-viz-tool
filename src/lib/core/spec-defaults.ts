@@ -4,7 +4,7 @@
  */
 import type {
   Aggregation, AxisSpec, Continuity, DataType, FieldMeta, MarkSettings, PaletteSelection, Pill,
-  Role, ShelfId, VizSpec,
+  Role, ShelfId, StyleSpec, TrendLine, VizSpec,
 } from './types';
 import { ALL_SHELVES, DEFAULT_CHART, SPEC_VERSION } from './constants';
 
@@ -71,6 +71,28 @@ export function defaultAxis(): AxisSpec {
   return { log: false, reversed: false, gridlines: true, showAxis: true };
 }
 
+/** Default style: app font, 1× scale, no chrome (v2). */
+export function defaultStyle(): StyleSpec {
+  return {
+    fontFamily: 'inherit',
+    fontScale: 1,
+    title: { size: 16, weight: 700, align: 'left' },
+    subtitle: { size: 12 },
+    caption: { size: 11 },
+    axis: { size: 11, titleSize: 12 },
+    labels: { size: 11 },
+    legend: { size: 11 },
+    background: 'transparent',
+    border: false,
+    padding: 16,
+  };
+}
+
+/** Trend line off by default (v2). */
+export function defaultTrendLine(): TrendLine {
+  return { enabled: false, model: 'linear', perSeries: true, showEquation: false };
+}
+
 /** Default palette selection (auto by continuity; Observatory categorical per D-10). */
 export function defaultPalette(): PaletteSelection {
   return { mode: 'auto' };
@@ -95,9 +117,13 @@ export function createDefaultSpec(datasetId: string): VizSpec {
     typeOverrides: {},
     palette: defaultPalette(),
     marks: defaultMarks(),
-    axes: { x: defaultAxis(), y: defaultAxis() },
+    axes: { x: defaultAxis(), y: defaultAxis(), y2: defaultAxis(), synchronized: false },
     legend: { show: true, position: 'right' },
     fieldFormats: {},
+    style: defaultStyle(),
+    referenceLines: [],
+    trendLine: defaultTrendLine(),
+    annotations: [],
   };
 }
 

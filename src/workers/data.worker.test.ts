@@ -52,6 +52,45 @@ describe('data worker router', () => {
     expect(h.replies.find((r) => r.reply.id === 4)!.transfer).toHaveLength(1);
   });
 
+  it('bands buffers are transferred alongside the v1 arrays', async () => {
+    const h = harness();
+    await h.send(load(1));
+    const [q] = await h.send({ id: 2, type: 'query', plan: { datasetId: 's', dims: [{ key: 'd', field: 'region' }], measures: [{ key: 'm', field: 'mw', aggregation: 'avg' }], filters: [], disaggregate: false, limit: 100, bands: { measureKey: 'm', levels: [25, 75] } } });
+    if (q!.type !== 'result') throw new Error(q!.type);
+    expect(q.result.bands).toHaveLength(2);
+    const sent = h.replies.find((r) => r.reply.id === 2)!;
+    for (const b of q.result.bands!) expect(sent.transfer).toContain(b.buffer);
+    expect(sent.transfer).toContain(q.result.measures[0]!.values.buffer);
+    expect(new Set(sent.transfer).size).toBe(sent.transfer.length);
+  });
+
+  it('load reports geo roles; setType re-infers them unless the load override pinned one', async () => {
+    const h = harness();
+    const r = await h.send(load(1));
+    const loaded = r.at(-1)!;
+    if (loaded.type !== 'loaded') throw new Error();
+    const role = (name: string, meta = loaded.meta) => meta.find((f) => f.name === name)!.geoRole;
+    expect(role('region')).toBe('ercot-zone'); // West / North / Houston / South
+    expect(role('fuel')).toBeNull();
+    expect(role('mw')).toBeNull();
+    const [m] = await h.send({ id: 2, type: 'setType', field: 'mw', dataType: 'string' });
+    if (m!.type !== 'meta') throw new Error();
+    expect(role('mw', m.meta)).toBeNull();
+    const [m2] = await h.send({ id: 3, type: 'setType', field: 'region', dataType: 'string' });
+    if (m2!.type !== 'meta') throw new Error();
+    expect(role('region', m2.meta)).toBe('ercot-zone');
+
+    const h2 = harness();
+    const r2 = await h2.send({ ...load(1), typeOverrides: { region: { geoRole: null }, fuel: { geoRole: 'country' } } as LoadRequest['typeOverrides'] });
+    const l2 = r2.at(-1)!;
+    if (l2.type !== 'loaded') throw new Error();
+    expect(role('region', l2.meta)).toBeNull();
+    expect(role('fuel', l2.meta)).toBe('country');
+    const [m3] = await h2.send({ id: 2, type: 'setType', field: 'region', dataType: 'string' });
+    if (m3!.type !== 'meta') throw new Error();
+    expect(role('region', m3.meta)).toBeNull();
+  });
+
   it('errors carry a code; requests before a load are bad-request', async () => {
     const h = harness();
     const [e] = await h.send({ id: 1, type: 'profile', field: 'x', limit: 1 });

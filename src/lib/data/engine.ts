@@ -7,7 +7,10 @@
  * (mixed radix over the dims' cardinalities) while the cell count stays
  * ≤ `DENSE_KEY_MAX_CELLS`, else hashed. Measures take one pass for
  * count/sum/min/max, two for var/stdev, and a counting-sort bucketing pass for
- * median, COUNTD and box statistics. Groups come out in natural nested order,
+ * median, the P5…P95 percentiles, COUNTD, box statistics and percentile bands
+ * (`plan.bands` → `result.bands`, one vector per level). Every percentile is
+ * `stats.quantile` (type 7, linear interpolation), so MEDIAN, P50 bands and
+ * boxplot medians agree to the bit. Groups come out in natural nested order,
  * re-ordered by `plan.sort` (label / value / manual), then stride-sampled to
  * `plan.limit` with `truncated: true`. `disaggregate` returns rows instead.
  *
@@ -24,11 +27,12 @@ import type {
   Aggregation, BoxStats, FieldProfile, FilterSpec, QueryDim, QueryMeasure, QueryPlan, QueryResult, QuerySort,
   ResultDim, ResultMeasure,
 } from '../core/types';
-import { DENSE_KEY_MAX_CELLS } from '../core/constants';
+import { DENSE_KEY_MAX_CELLS, PERCENTILE_LEVEL } from '../core/constants';
 import { queryKey } from '../core/query-of';
 import { type ColumnStore, labelAt } from './column-store';
 import { datePartLabel, isoLabel } from './date-parse';
 import { buildMask, countMask } from './filters';
+import { quantile } from './stats';
 
 // ---------------------------------------------------------------------------
 // Dimensions → per-row codes
@@ -297,37 +301,39 @@ function bucketValues(groupOf: Int32Array, nGroups: number, vals: Float64Array, 
   return { offsets, sorted };
 }
 
-/** Linear-interpolation quantile (type 7) of a sorted slice. */
-function quantile(sorted: Float64Array, a: number, b: number, p: number): number {
-  const n = b - a;
-  if (n === 0) return NaN;
-  const pos = (n - 1) * p;
-  const lo = Math.floor(pos);
-  const frac = pos - lo;
-  const v0 = sorted[a + lo]!;
-  if (frac === 0 || lo + 1 >= n) return v0;
-  return v0 + frac * (sorted[a + lo + 1]! - v0);
+/** The field's bucketing (sorted values per group), computed once per query and shared by every rank statistic. */
+function bucketsFor(store: ColumnStore, groupOf: Int32Array, nGroups: number, field: string, mask: Uint8Array | null, ctx: Ctx): Bucket {
+  let b = ctx.buckets.get(field);
+  if (!b) { b = bucketValues(groupOf, nGroups, store.numericView(field), mask); ctx.buckets.set(field, b); }
+  return b;
+}
+
+/** Type-7 percentile at `level` (0..100) of every group of a bucketing; NaN for an empty group. */
+function percentiles(b: Bucket, nGroups: number, level: number): Float64Array {
+  const out = new Float64Array(nGroups);
+  const p = level / 100;
+  for (let g = 0; g < nGroups; g++) out[g] = quantile(b.sorted, b.offsets[g]!, b.offsets[g + 1]!, p);
+  return out;
 }
 
 /**
  * Aggregate one measure per group. `groupOf[i]` < 0 or a 0 in `mask` skips the
  * row; null values are ignored (§3). Empty groups yield `NaN` except count/countd → 0.
+ * MEDIAN and P5…P95 are type-7 percentiles (`PERCENTILE_LEVEL`) over the shared bucketing.
  */
 export function aggregateMeasure(store: ColumnStore, groupOf: Int32Array, nGroups: number, m: QueryMeasure, mask: Uint8Array | null, ctx: Ctx = newCtx()): Float64Array {
   const vals = store.numericView(m.field);
-  const out = new Float64Array(nGroups);
   const agg: Aggregation = m.aggregation;
-  if (agg === 'median' || agg === 'countd') {
-    let b = ctx.buckets.get(m.field);
-    if (!b) { b = bucketValues(groupOf, nGroups, vals, mask); ctx.buckets.set(m.field, b); }
+  const level = PERCENTILE_LEVEL[agg];
+  if (level !== undefined) return percentiles(bucketsFor(store, groupOf, nGroups, m.field, mask, ctx), nGroups, level);
+  const out = new Float64Array(nGroups);
+  if (agg === 'countd') {
+    const b = bucketsFor(store, groupOf, nGroups, m.field, mask, ctx);
     for (let g = 0; g < nGroups; g++) {
       const a = b.offsets[g]!, z = b.offsets[g + 1]!;
-      if (agg === 'median') out[g] = quantile(b.sorted, a, z, 0.5);
-      else {
-        let d = 0;
-        for (let i = a; i < z; i++) if (i === a || b.sorted[i] !== b.sorted[i - 1]) d++;
-        out[g] = d;
-      }
+      let d = 0;
+      for (let i = a; i < z; i++) if (i === a || b.sorted[i] !== b.sorted[i - 1]) d++;
+      out[g] = d;
     }
     return out;
   }
@@ -364,9 +370,7 @@ export function aggregateMeasure(store: ColumnStore, groupOf: Int32Array, nGroup
 }
 
 function boxStats(store: ColumnStore, groupOf: Int32Array, nGroups: number, field: string, mask: Uint8Array | null, ctx: Ctx): BoxStats {
-  const vals = store.numericView(field);
-  let b = ctx.buckets.get(field);
-  if (!b) { b = bucketValues(groupOf, nGroups, vals, mask); ctx.buckets.set(field, b); }
+  const b = bucketsFor(store, groupOf, nGroups, field, mask, ctx);
   const q1 = new Float64Array(nGroups), med = new Float64Array(nGroups), q3 = new Float64Array(nGroups);
   const lo = new Float64Array(nGroups), hi = new Float64Array(nGroups);
   const outliers: Float64Array[] = [];
@@ -506,15 +510,24 @@ export function runQuery(store: ColumnStore, plan: QueryPlan): QueryResult {
     key, groups: n, dims: resultDims, measures,
     scannedRows: store.rowCount, filteredRows, truncated: pick !== null, elapsedMs: 0,
   };
+  const sub = (a: Float64Array) => { const o = new Float64Array(n); for (let j = 0; j < n; j++) o[j] = a[outIdx[j]!]!; return o; };
   if (plan.boxstats) {
     const m = plan.measures.find((mm) => mm.key === plan.boxstats!.measureKey);
     if (m) {
       const full = boxStats(store, grouping.groupOf, grouping.nGroups, m.field, null, ctx);
-      const sub = (a: Float64Array) => { const o = new Float64Array(n); for (let j = 0; j < n; j++) o[j] = a[outIdx[j]!]!; return o; };
       result.boxstats = {
         q1: sub(full.q1), med: sub(full.med), q3: sub(full.q3), lo: sub(full.lo), hi: sub(full.hi),
         outliers: Array.from(outIdx, (g) => full.outliers[g]!),
       };
+    }
+  }
+  if (plan.bands) {
+    // Envelope bands (D-15): one type-7 percentile vector per level over the measure's
+    // field, sharing the bucketing with MEDIAN / P-aggregations / boxstats on that field.
+    const m = plan.measures.find((mm) => mm.key === plan.bands!.measureKey);
+    if (m) {
+      const b = bucketsFor(store, grouping.groupOf, grouping.nGroups, m.field, null, ctx);
+      result.bands = plan.bands.levels.map((level) => sub(percentiles(b, grouping.nGroups, level)));
     }
   }
   result.elapsedMs = now() - t0;

@@ -135,8 +135,9 @@ export function createDatasetStore(deps: DatasetStoreDeps): DatasetStore {
     // Overrides are read from the spec we will install, before the worker infers types.
     const planned = chooseSpec(next.id, null, initialSpec);
     try {
-      const loaded = await deps.client.load(next, source, {
-        typeOverrides: planned.typeOverrides,
+      // Callers may hand us `$state` proxies (the picker's manifest, the spec); `postMessage` cannot clone those.
+      const loaded = await deps.client.load($state.snapshot(next) as DatasetEntry, source, {
+        typeOverrides: $state.snapshot(planned.typeOverrides),
         maxRows: deps.isMobile?.() ? MAX_ROWS_MOBILE : undefined,
         onProgress: (p) => { if (seq === loadSeq) progress = p; },
       });

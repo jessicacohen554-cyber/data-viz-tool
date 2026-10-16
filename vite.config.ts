@@ -6,12 +6,27 @@
  * (https://<user>.github.io/data-viz-tool/) without a rebuild. Asset names are
  * deterministic (no content hash) so the committed `dist/` diff stays small.
  */
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+/** The `$core`, `$stores`, … path aliases of tsconfig.json, so Vitest resolves them too (S4 seam 1). */
+const lib = (dir: string) => fileURLToPath(new URL(`./src/lib/${dir}`, import.meta.url));
 
 export default defineConfig({
   base: './',
   plugins: [svelte()],
+  resolve: {
+    alias: {
+      $core: lib('core'),
+      $data: lib('data'),
+      $format: lib('format'),
+      $palette: lib('palette'),
+      $charts: lib('charts'),
+      $stores: lib('stores'),
+      $ui: lib('ui'),
+    },
+  },
   worker: { format: 'es' },
   build: {
     target: 'es2022',

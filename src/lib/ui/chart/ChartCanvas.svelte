@@ -7,7 +7,7 @@
    * to the pure builders as `BuildContext.theme` (rule R-TOKENS: ECharts
    * cannot read `var()`). `toPng()` exports the canvas for saved-view thumbnails.
    */
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import type { FieldMeta, QueryResult, VizSpec } from '$core/types';
   import { echarts, type EChartsInstance } from '$charts/echarts-setup';
   import { REPLACE_MERGE_KEYS, tryBuildOption, type BuildOutcome } from '$charts/spec-builder';
@@ -30,13 +30,17 @@
     isMobile?: boolean;
     /** True while a query is in flight; dims the surface without tearing down the chart. */
     busy?: boolean;
+    /** Raw first rows of the dataset (S3 seam 6): shown as a text table while no pill drives a query. */
+    raw?: TableModel | null;
   }
 
-  let { spec, result, meta, isMobile = false, busy = false }: Props = $props();
+  let { spec, result, meta, isMobile = false, busy = false, raw = null }: Props = $props();
 
   let host = $state<HTMLDivElement>();
   let frame = $state<HTMLDivElement>();
-  let chart: EChartsInstance | null = null;
+  /** Reactive (raw, no proxy) so the option effect re-runs once the instance exists: the host div and the first
+   * result can land in the same flush, where the option effect would otherwise run before `init` and never again. */
+  let chart = $state.raw<EChartsInstance | null>(null);
   let observer: ResizeObserver | null = null;
   let raf = 0;
   let theme = $state<ChartTheme>(DEFAULT_THEME);
@@ -88,14 +92,16 @@
   // ECharts lifecycle: (re)create when the host element appears, dispose when it leaves (DOM renderer).
   $effect(() => {
     const el = host;
-    if (!el) { disposeChart(); return; }
-    chart = echarts.init(el, undefined, { renderer: 'canvas', useDirtyRect: true });
+    // `chart` is read untracked here: this effect depends on the host element only, never on the instance it creates.
+    if (!el) { untrack(disposeChart); return; }
+    const instance = echarts.init(el, undefined, { renderer: 'canvas', useDirtyRect: true });
+    chart = instance;
     observer = new ResizeObserver(() => {
       if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => { raf = 0; chart?.resize(); });
+      raf = requestAnimationFrame(() => { raf = 0; instance.resize(); });
     });
     observer.observe(el);
-    return disposeChart;
+    return () => untrack(disposeChart);
   });
 
   // Push the option whenever it changes. `replaceMerge` drops series/axes that vanished.
@@ -134,7 +140,9 @@
 </script>
 
 <div class="chart-canvas" class:chart-canvas--busy={busy} bind:this={frame} aria-busy={busy}>
-  {#if !result}
+  {#if !result && raw}
+    <TextTable model={raw} />
+  {:else if !result}
     <p class="chart-canvas__hint">Drop fields on Columns and Rows to start a chart.</p>
   {:else if reason}
     <p class="chart-canvas__hint"><strong>{def.label}</strong> · {reason}</p>

@@ -11,10 +11,10 @@
  * pure modules never import this file.
  */
 import { untrack } from 'svelte';
-import type { ChartTypeId, DatasetEntry, QueryPlan, QueryResult, VizSpec } from '../core/types';
+import type { DatasetEntry, QueryPlan, QueryResult, VizSpec } from '../core/types';
 import { QUERY_LIMIT_DESKTOP, QUERY_LIMIT_MOBILE } from '../core/constants';
 import { queryKey, queryOf, type ChartNeeds } from '../core/query-of';
-import { CHART_TYPES } from '../charts/registry';
+import { needsFor } from '../charts/registry';
 import type { DataClient } from '../data/data-client';
 import { spec as specSingleton, type SpecStore } from './spec.svelte';
 import { dataset as datasetSingleton } from './dataset.svelte';
@@ -26,8 +26,8 @@ export interface QueryStoreDeps {
   spec: SpecStore;
   /** Load state: a query runs only when the dataset the spec names is loaded. */
   dataset: { readonly ready: boolean; readonly entry: DatasetEntry | null };
-  /** Plan features the chart type needs (boxstats, disaggregation); defaults to the registry. */
-  needsOf?: (chart: ChartTypeId) => ChartNeeds;
+  /** Plan features the spec's chart type needs (boxstats, disaggregation); defaults to the registry's `needsFor`. */
+  needsOf?: (spec: VizSpec) => ChartNeeds;
   /** Result cap; defaults to the desktop/phone constants by viewport. */
   limit?: () => number;
 }
@@ -70,9 +70,12 @@ function messageOf(e: unknown): string {
   return String(e);
 }
 
-/** Plan features declared by the chart registry for `chart` (empty until S3 lands). */
-export function registryNeeds(chart: ChartTypeId): ChartNeeds {
-  return CHART_TYPES[chart]?.needs ?? {};
+/**
+ * Plan features for the spec's chart type, refined by its pills (S3 seam 3:
+ * scatter/bubble/parallel disaggregate only without a grouping dimension).
+ */
+export function registryNeeds(spec: VizSpec): ChartNeeds {
+  return needsFor(spec);
 }
 
 /**
@@ -84,11 +87,11 @@ export function planFor(
   spec: VizSpec,
   ready: boolean,
   datasetId: string | null,
-  needsOf: (chart: ChartTypeId) => ChartNeeds,
+  needsOf: (spec: VizSpec) => ChartNeeds,
   limit: number,
 ): PlannedQuery | null {
   if (!ready || !datasetId || spec.datasetId !== datasetId) return null;
-  const plan = queryOf(spec, needsOf(spec.chartType), limit);
+  const plan = queryOf(spec, needsOf(spec), limit);
   if (plan.dims.length === 0 && plan.measures.length === 0) return null;
   return { plan, key: queryKey(plan) };
 }
@@ -118,7 +121,8 @@ export function createQueryStore(deps: QueryStoreDeps): QueryStore {
     pending = true;
     error = null;
     const mine = ++seq;
-    deps.client.query(planned.plan).then(
+    // The plan shares `filters` / `date` / `bin` with the `$state` spec; `postMessage` cannot clone a proxy.
+    deps.client.query($state.snapshot(planned.plan) as QueryPlan).then(
       (r) => {
         if (mine !== seq) return;
         result = r;

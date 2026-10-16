@@ -1,16 +1,43 @@
+<script lang="ts" module>
+  import type { FieldMeta as FieldMetaT, GeoRole, VizSpec } from '../../core/types';
+
+  /** One field's `typeOverrides` entry. */
+  type TypeOverride = VizSpec['typeOverrides'][string];
+
+  /** The geographic role in force: the override when the spec carries one (`null` = none), else the inferred role. */
+  export function effectiveGeoRole(overrides: VizSpec['typeOverrides'], m: FieldMetaT): GeoRole | null {
+    const o = overrides[m.name];
+    return o && 'geoRole' in o ? (o.geoRole ?? null) : (m.geoRole ?? null);
+  }
+
+  /**
+   * The override entry after choosing `role` for a field (Tableau "Geographic
+   * Role ▸ …", None clears): a role equal to the inferred one needs no
+   * override; None over an inferred role is recorded as `null`; an entry
+   * with nothing left is dropped (`undefined`).
+   */
+  export function withGeoRole(cur: TypeOverride | undefined, inferred: GeoRole | null, role: GeoRole | null): TypeOverride | undefined {
+    const next: TypeOverride = { ...(cur ?? {}) };
+    delete next.geoRole;
+    if (role !== inferred) next.geoRole = role;
+    return Object.keys(next).length ? next : undefined;
+  }
+</script>
+
 <script lang="ts">
   /**
    * The data pane: Dimensions and Measures groups (by effective role, i.e.
    * `FieldMeta.role` unless `spec.typeOverrides` says otherwise), a search
    * box, and the field context menu: Add to shelf…, Convert to
-   * Dimension/Measure, Change Data Type, Day/Month toggle for ambiguous
-   * dates, Default format…. Role and type changes are written to
-   * `spec.typeOverrides` (one undo step); the dataset store (S5) re-parses
-   * the column from there. `meta` is a prop so the pane works standalone.
+   * Dimension/Measure, Change Data Type, Geographic role (v2), Day/Month
+   * toggle for ambiguous dates, Default format…. Role, type and geo-role
+   * changes are written to `spec.typeOverrides` (one undo step); the dataset
+   * store (S5) re-parses the column from there. `meta` is a prop so the pane
+   * works standalone.
    */
   import { onMount } from 'svelte';
   import type { DataType, FieldMeta, Role, ShelfId } from '../../core/types';
-  import { ALL_SHELVES, DATA_TYPES } from '../../core/constants';
+  import { ALL_SHELVES, DATA_TYPES, GEO_ROLES } from '../../core/constants';
   import Icon from '../shared/Icon.svelte';
   import Menu, { type MenuItem, type MenuSection } from '../shared/Menu.svelte';
   import { dragController, type TapEvent } from '../drag/drag-controller';
@@ -18,18 +45,21 @@
   import { ui } from '../../stores/ui.svelte';
   import { applyDrop, fieldPayload, selectionToken } from '../shelves/drop-rules';
   import { SHELF_LABEL } from '../shelves/shelf-labels';
-  import FieldItem from './FieldItem.svelte';
+  import FieldItem, { GEO_ROLE_LABEL } from './FieldItem.svelte';
 
   let {
     meta = [],
     onFormat,
     onChangeType,
+    onChangeGeoRole,
   }: {
     meta?: FieldMeta[];
     /** Open the Format dialog (S5) for a field's default format. */
     onFormat?: (field: string) => void;
     /** Notified after a type override is written, so the dataset store can re-parse. */
     onChangeType?: (field: string, type: DataType, dateFormat?: string) => void;
+    /** Notified after a geo-role override is written (`null` = none), so the dataset store can refresh `meta` (`dataset.setGeoRole`). */
+    onChangeGeoRole?: (field: string, role: GeoRole | null) => void;
   } = $props();
 
   let search = $state('');
@@ -61,9 +91,17 @@
     spec.patch((d) => {
       const cur = d.typeOverrides[field] ?? {};
       const next = { ...cur, ...patch };
-      if (!next.type && !next.role && !next.dateFormat) delete d.typeOverrides[field];
+      if (!next.type && !next.role && !next.dateFormat && !('geoRole' in next)) delete d.typeOverrides[field];
       else d.typeOverrides[field] = next;
     });
+  }
+
+  function setGeoRole(m: FieldMeta, role: GeoRole | null): void {
+    spec.patch((d) => {
+      const next = withGeoRole(d.typeOverrides[m.name], m.geoRole ?? null, role);
+      if (next) d.typeOverrides[m.name] = next; else delete d.typeOverrides[m.name];
+    });
+    onChangeGeoRole?.(m.name, role);
   }
 
   function addTo(m: FieldMeta, shelf: ShelfId): void {
@@ -97,9 +135,18 @@
     const convert: MenuItem = role === 'measure'
       ? { id: 'to-dim', label: 'Convert to Dimension', onSelect: () => setOverride(m.name, { role: m.role === 'dimension' ? undefined : 'dimension' }) }
       : { id: 'to-measure', label: 'Convert to Measure', disabled: type === 'boolean', onSelect: () => setOverride(m.name, { role: m.role === 'measure' ? undefined : 'measure' }) };
+    const geo = effectiveGeoRole(spec.value.typeOverrides, m);
+    const geoItems: MenuItem[] = [
+      ...GEO_ROLES.map((g): MenuItem => ({ id: `geo-${g}`, label: GEO_ROLE_LABEL[g], checked: geo === g, onSelect: () => setGeoRole(m, g) })),
+      { id: 'geo-none', label: 'None', checked: geo === null, onSelect: () => setGeoRole(m, null) },
+    ];
     const sections: MenuSection[] = [
       { items: [{ id: 'add', label: 'Add to shelf', icon: 'plus', children: [{ items: addItems }] }] },
-      { items: [convert, { id: 'type', label: 'Change data type', hint: TYPE_LABEL[type], children: [{ items: typeItems }] }] },
+      { items: [
+        convert,
+        { id: 'type', label: 'Change data type', hint: TYPE_LABEL[type], children: [{ items: typeItems }] },
+        { id: 'geo', label: 'Geographic role', hint: geo ? GEO_ROLE_LABEL[geo] : 'None', children: [{ items: geoItems }] },
+      ] },
     ];
     if (m.dateAmbiguous) {
       const swapped = m.dateFormat?.startsWith('d') ?? false;
@@ -116,6 +163,9 @@
     sections.push({ items: [{ id: 'format', label: 'Default format…', disabled: !onFormat, onSelect: () => onFormat?.(m.name) }] });
     return sections;
   }
+
+  const menuAnchor = $derived(menu?.anchor ?? null);
+  const menuSectionsNow = $derived(menu ? menuSections(menu.meta) : []);
 </script>
 
 <div class="fields" bind:this={root}>
@@ -130,13 +180,13 @@
     <section class="fields__group" aria-label="Dimensions">
       <div class="eyebrow fields__title">Dimensions <span class="num">{dimensions.length}</span></div>
       {#each dimensions as m (m.name)}
-        <FieldItem meta={m} role="dimension" selected={ui.tapSelection === `field:${m.name}`} onMenu={(mm, a) => { menu = { meta: mm, anchor: a }; }} />
+        <FieldItem meta={m} role="dimension" geoRole={effectiveGeoRole(spec.value.typeOverrides, m)} selected={ui.tapSelection === `field:${m.name}`} onMenu={(mm, a) => { menu = { meta: mm, anchor: a }; }} />
       {/each}
     </section>
     <section class="fields__group" aria-label="Measures">
       <div class="eyebrow fields__title">Measures <span class="num">{measures.length}</span></div>
       {#each measures as m (m.name)}
-        <FieldItem meta={m} role="measure" selected={ui.tapSelection === `field:${m.name}`} onMenu={(mm, a) => { menu = { meta: mm, anchor: a }; }} />
+        <FieldItem meta={m} role="measure" geoRole={effectiveGeoRole(spec.value.typeOverrides, m)} selected={ui.tapSelection === `field:${m.name}`} onMenu={(mm, a) => { menu = { meta: mm, anchor: a }; }} />
       {/each}
     </section>
     {#if visible.length === 0}
@@ -146,7 +196,8 @@
 </div>
 
 {#if menu}
-  <Menu anchor={menu.anchor} sections={menuSections(menu.meta)} title={menu.meta.name} onClose={() => { menu = null; }} />
+  <!-- Derived props stay readable after the menu closes: Menu positions itself in a deferred tick. -->
+  <Menu anchor={menuAnchor} sections={menuSectionsNow} title={menu.meta.name} onClose={() => { menu = null; }} />
 {/if}
 
 <style>

@@ -16,13 +16,13 @@
  * Never `Date.parse`; never DOM (R-PURE, R-WORKER).
  */
 import { parse as papaParse } from 'papaparse';
-import type { DataType, FieldMeta, LoadProgress, Role } from '../core/types';
+import type { DataType, FieldMeta, GeoRole, LoadProgress, Role } from '../core/types';
 import { INFERENCE_SAMPLE_ROWS, PROGRESS_INTERVAL_MS } from '../core/constants';
 import {
   ColumnStore, builderFor, finalizeMeta, type BuiltColumn, type ColumnBuilder,
 } from './column-store';
 import { cachedParser, detectDateFormat, type DateParser } from './date-parse';
-import { defaultsFor, inferAll, isNullToken, storageFor } from './type-inference';
+import { defaultsFor, inferAll, inferGeoRole, isNullToken, nonNullValues, storageFor } from './type-inference';
 
 /** Cache API bucket for catalog CSVs. */
 export const DATASET_CACHE = 'viz-datasets-v1';
@@ -33,8 +33,8 @@ const DEFAULT_CHUNK_BYTES = 1 << 20;
 /** Fallback pattern when a `date` override carries no format and detection fails. */
 const FALLBACK_DATE_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS";
 
-/** Per-field user overrides (`VizSpec.typeOverrides`). */
-export type TypeOverrides = Record<string, { type?: DataType; role?: Role; dateFormat?: string }>;
+/** Per-field user overrides (`VizSpec.typeOverrides`). `geoRole: null` clears an inferred role; absent keeps it. */
+export type TypeOverrides = Record<string, { type?: DataType; role?: Role; dateFormat?: string; geoRole?: GeoRole | null }>;
 
 /** Accepted inputs: a URL, a `Blob`/`File`, a byte stream, or bytes already in memory. */
 export type CsvSource = string | Blob | ReadableStream<Uint8Array> | Uint8Array;
@@ -186,7 +186,11 @@ export class NetworkError extends Error {
 // Load
 // ---------------------------------------------------------------------------
 
-/** Apply `typeOverrides` to inferred metadata and pick each column's builder. */
+/**
+ * Apply `typeOverrides` to inferred metadata and pick each column's builder. A
+ * type override re-infers the geo role for the new type; an explicit `geoRole`
+ * override then wins (`null` clears).
+ */
 function plan(fields: FieldMeta[], sample: string[][], overrides: TypeOverrides, capacity: number): ColumnBuilder[] {
   return fields.map((meta) => {
     const ov = overrides[meta.name];
@@ -197,6 +201,7 @@ function plan(fields: FieldMeta[], sample: string[][], overrides: TypeOverrides,
       meta.confidence = 1;
       meta.dateFormat = null;
       meta.dateAmbiguous = false;
+      meta.geoRole = inferGeoRole(meta.name, nonNullValues(sample.map((r) => r[meta.index] ?? '')), ov.type);
     }
     if (meta.storage === 'date') {
       if (ov?.dateFormat) { meta.dateFormat = ov.dateFormat; meta.dateAmbiguous = false; }
@@ -210,6 +215,7 @@ function plan(fields: FieldMeta[], sample: string[][], overrides: TypeOverrides,
       meta.defaultContinuity = ov.role === 'measure' ? 'continuous' : 'discrete';
       meta.defaultAggregation = ov.role === 'measure' ? 'sum' : 'count';
     }
+    if (ov && 'geoRole' in ov) meta.geoRole = ov.geoRole ?? null;
     return builderFor(meta.storage, capacity, meta.storage === 'date' ? cachedParser(meta.dateFormat!) : undefined);
   });
 }

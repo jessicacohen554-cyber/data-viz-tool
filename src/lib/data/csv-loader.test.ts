@@ -94,6 +94,22 @@ describe('loadCsv on tests/fixtures/sample.csv', () => {
     expect(warnings.some((w) => /date_us: 2 value/.test(w))).toBe(true);
   });
 
+  it('infers geo roles and honours typeOverrides[field].geoRole (null clears, a type change re-infers)', async () => {
+    const header = ['zone', 'state', 'lat', 'code'];
+    const rows = [['Houston', 'TX', '29.76', '48201'], ['West', 'Texas', '31.9', '48453'], ['North', 'OK', '32.8', '01001']];
+    const plain = (await loadTable(header, rows)).store;
+    expect(plain.fields.map((f) => f.geoRole)).toEqual(['ercot-zone', 'us-state', 'latitude', null]);
+
+    const over = (await loadTable(header, rows, { typeOverrides: { zone: { geoRole: null }, state: { geoRole: 'country' }, code: { type: 'string', geoRole: 'us-county' } } })).store;
+    expect(over.fields.map((f) => f.geoRole)).toEqual([null, 'country', 'latitude', 'us-county']);
+    expect(over.meta('code').type).toBe('string');
+
+    // A type override alone re-infers for the new type: lat as a string is no coordinate.
+    const retyped = (await loadTable(header, rows, { typeOverrides: { lat: { type: 'string' } } })).store;
+    expect(retyped.meta('lat').geoRole).toBeNull();
+    expect(retyped.meta('zone').geoRole).toBe('ercot-zone');
+  });
+
   it('detects the format for a date override without one', async () => {
     const { store } = await loadTable(['d'], [['01/15/2024'], ['02/05/2024'], ['x']], { typeOverrides: { d: { type: 'date' } } });
     expect(store.meta('d')).toMatchObject({ type: 'date', dateFormat: 'MM/dd/yyyy', parseErrors: 1 });

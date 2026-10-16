@@ -8,7 +8,7 @@ import type { ChartTypeId, QueryResult, VizSpec } from '../core/types';
 import { CHART_TYPE_IDS } from '../core/constants';
 import type { BuildContext } from './registry';
 import { REPLACE_MERGE_KEYS, buildOption, rendererOf, tryBuildOption } from './spec-builder';
-import { date, day, dim, makeResult, makeSpec, measure, resultDim, resultMeasure, trivial } from './test-fixtures';
+import { date, day, dim, makeResult, makeSpec, measure, resultDim, resultMeasure, trivial, zonesLayer } from './test-fixtures';
 import type { TableModel } from './types/text-table';
 import type { KpiModel } from './types/kpi';
 import type { HighlightModel } from './types/highlight-table';
@@ -40,6 +40,25 @@ function fixture(id: ChartTypeId): { spec: VizSpec; result: QueryResult } {
       return { spec: makeSpec(id, { columns: [zone], rows: [fuel], color: [p] }), result: two([resultDim(zone.id, zones6), resultDim(fuel.id, fuels6)], [resultMeasure(p.id, vals6)]) };
     case 'line': case 'area':
       return { spec: makeSpec(id, { columns: [t], rows: [p] }), result: two([resultDim(t.id, months.slice(0, 3))], [resultMeasure(p.id, [1, 2, 3])]) };
+    case 'area-stacked': case 'area-100':
+      return { spec: makeSpec(id, { columns: [t], rows: [p], color: [zone] }), result: two([resultDim(t.id, months), resultDim(zone.id, zones6)], [resultMeasure(p.id, vals6)]) };
+    case 'combo':
+      return { spec: makeSpec(id, { columns: [zone], rows: [p, q] }), result: two([resultDim(zone.id, ['North', 'South', 'West'])], [resultMeasure(p.id, [30, 45, null]), resultMeasure(q.id, [1000, 1200, 900])]) };
+    case 'envelope': {
+      const hour = dim('hour');
+      const result = two([resultDim(hour.id, ['0', '1', '2'])], [resultMeasure(p.id, [10, 20, 30])]);
+      // Levels in `envelopeLevels` order for the default bands: P5, P95, P25, P75, then the median.
+      result.bands = [[5, 10, 15], [15, 30, 45], [8, 16, 24], [12, 24, 36], [10, 20, 30]].map((a) => Float64Array.from(a));
+      return { spec: makeSpec(id, { columns: [hour], rows: [p] }), result };
+    }
+    case 'map-choropleth': {
+      zonesLayer();
+      return { spec: makeSpec(id, { columns: [zone], color: [p] }, (s) => { s.geoLayer = 'test-zones'; }), result: two([resultDim(zone.id, ['North', 'South', 'West'])], [resultMeasure(p.id, [30, 45, null])]) };
+    }
+    case 'map-symbol': {
+      zonesLayer();
+      return { spec: makeSpec(id, { columns: [zone], size: [q] }, (s) => { s.geoLayer = 'test-zones'; }), result: two([resultDim(zone.id, ['North', 'South', 'West'])], [resultMeasure(q.id, [10, 40, 20])]) };
+    }
     case 'streamgraph': case 'bump':
       return { spec: makeSpec(id, { columns: [t], rows: [p], color: [zone] }), result: two([resultDim(t.id, months), resultDim(zone.id, zones6)], [resultMeasure(p.id, vals6)]) };
     case 'calendar-heatmap':
@@ -75,7 +94,6 @@ function fixture(id: ChartTypeId): { spec: VizSpec; result: QueryResult } {
       return { spec: makeSpec(id, { columns: [tDay], rows: [o, c, l, h] }), result: two([resultDim(tDay.id, [day(2024, 1, 2), day(2024, 1, 1)])], [resultMeasure(o.id, [10, 11]), resultMeasure(c.id, [12, 9]), resultMeasure(l.id, [9, 8]), resultMeasure(h.id, [13, 12])]) };
     }
     default:
-      // v2 ids (PENDING_CHART_TYPE_IDS) get their fixtures when the charts shard registers them.
       throw new Error(`no fixture for chart id ${id}`);
   }
 }

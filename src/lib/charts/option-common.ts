@@ -2,23 +2,30 @@
  * Shared pieces every chart builder composes: the Observatory theme (CSS token
  * values passed in by the canvas, with a fallback mirror of `app.css`), pill
  * classification, result lookup through `pillKeyMap`, formatter and palette
- * wiring, and the ECharts option fragments (tooltip, legend, grid, axes,
- * visualMap, labels, dataZoom) plus the two cartesian builders (bars, lines)
- * that most of the library reuses.
+ * wiring, style-derived font sizes, and the ECharts option fragments (tooltip,
+ * legend, grid, axes, visualMap, labels, dataZoom) plus the two cartesian
+ * builders (bars, lines) that most of the library reuses.
  *
- * Rules applied here (CONSUMES, dataviz skill): thin marks, no dual axis,
- * categorical hues in fixed order, text in text tokens never series color,
- * legend for ≥ 2 series, hover tooltip by default (`click` on touch),
- * `transitionDuration: 0`, `confine: true`, animation off above 5K points or
- * on mobile. Framework-free (rule R-PURE).
+ * v2 (D-19): the cartesian builders take every measure on the value shelf;
+ * a pill with `axis: 'secondary'` draws on `yAxis[1]` (right side) styled from
+ * `axes.y2`, `axes.synchronized` copies the primary range, and the series
+ * name carries " (right)" so legend and tooltip name the axis. Reference
+ * lines, trend lines and annotations are attached through `decorations.ts`.
+ *
+ * Rules applied here (CONSUMES, dataviz skill): thin marks, categorical hues
+ * in fixed order, text in text tokens never series color, legend for ≥ 2
+ * series, hover tooltip by default (`click` on touch), `transitionDuration: 0`,
+ * `confine: true`, animation off above 5K points or on mobile. Framework-free
+ * (rule R-PURE).
  */
 import type { FieldMeta, FormatSpec, Pill, QueryResult, ResultDim, ResultMeasure, ShelfId, VizSpec } from '../core/types';
-import { AGGREGATION_LABEL } from '../core/constants';
+import { AGGREGATION_LABEL, FONT_FAMILIES } from '../core/constants';
 import { pillKeyMap } from '../core/query-of';
 import { makeFormatter, type ValueFormatter } from '../format/formatter';
 import { pickPalette, type ColorEncoding } from '../palette/pick';
 import type { BuildContext } from './registry';
-import { type Cell, type Pivot, dimAccessor, measureCells, pivot, sortByX } from './transforms';
+import { type Decorations, type DecorationSeries, applyDecorations, cartesianDecorations, hasDecorations, trendTooltipText } from './decorations';
+import { type Cell, type Pivot, dimAccessor, measureCells, percentStack, pivot, sortByX } from './transforms';
 
 // ---------------------------------------------------------------------------
 // Theme
@@ -90,6 +97,12 @@ export const LTTB_MIN_POINTS = 2000;
 /** Pie/donut fold slices beyond this count into "Other". */
 export const MAX_SLICES = 12;
 
+/** Suffix that names the secondary axis in legend and tooltip (D-19). */
+export const SECONDARY_SUFFIX = ' (right)';
+
+/** Modules every cartesian builder may need for decorations: mark components (reference lines, bands, annotations) and `line` series (trend lines). */
+export const DECORATION_MODULES: readonly string[] = ['MarkLineComponent', 'MarkAreaComponent', 'MarkPointComponent', 'LineChart'];
+
 /** A 24×24 stroke icon for the picker from path data; colour comes from `currentColor`. */
 export function svgIcon(body: string): string {
   return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -98,6 +111,49 @@ export function svgIcon(body: string): string {
 /** Theme of a context (falls back to the mirror). */
 export function themeOf(ctx: BuildContext): ChartTheme {
   return ctx.theme ?? DEFAULT_THEME;
+}
+
+// ---------------------------------------------------------------------------
+// Style-derived fonts and sizes
+// ---------------------------------------------------------------------------
+
+/** Font families and the size multiplier a builder should use. */
+export interface StyleFonts {
+  base: string;
+  axis: string;
+  labels: string;
+  legend: string;
+  scale: number;
+  /** Scaled sizes in px. */
+  axisLabel: number;
+  axisTitle: number;
+  label: number;
+  legendText: number;
+}
+
+/** CSS font stack for a `FONT_FAMILIES` id; `inherit`, unknown or absent → the app font from the theme. */
+export function fontCss(id: string | undefined, theme: ChartTheme): string {
+  if (!id || id === 'inherit') return theme.fontBody;
+  return FONT_FAMILIES.find((f) => f.id === id)?.css ?? theme.fontBody;
+}
+
+/** Resolve `spec.style` to the families and scaled sizes the builders use. */
+export function styleFonts(ctx: BuildContext): StyleFonts {
+  const st = ctx.spec.style;
+  const theme = themeOf(ctx);
+  const scale = Number.isFinite(st.fontScale) && st.fontScale > 0 ? st.fontScale : 1;
+  const base = fontCss(st.fontFamily, theme);
+  return {
+    base,
+    axis: st.axis.fontFamily ? fontCss(st.axis.fontFamily, theme) : base,
+    labels: st.labels.fontFamily ? fontCss(st.labels.fontFamily, theme) : theme.fontMono,
+    legend: st.legend.fontFamily ? fontCss(st.legend.fontFamily, theme) : base,
+    scale,
+    axisLabel: Math.round(st.axis.size * scale),
+    axisTitle: Math.round(st.axis.titleSize * scale),
+    label: Math.round(st.labels.size * scale),
+    legendText: Math.round(st.legend.size * scale),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +237,11 @@ export function pillLabel(p: Pill): string {
   if (p.bin) return `${p.field} (bin)`;
   if (p.role === 'measure' && p.aggregation !== 'none') return `${AGGREGATION_LABEL[p.aggregation]}(${p.field})`;
   return p.field;
+}
+
+/** Which value axis a measure pill draws on (default primary). */
+export function axisOf(p: Pill): 'primary' | 'secondary' {
+  return p.axis === 'secondary' ? 'secondary' : 'primary';
 }
 
 // ---------------------------------------------------------------------------
@@ -343,17 +404,21 @@ export function textOn(bg: string, theme: ChartTheme): string {
 /** Loose ECharts option / series object. */
 export type OptionObject = Record<string, unknown>;
 
+/** The three axis slots of `spec.axes` a builder may style from. */
+export type AxisId = 'x' | 'y' | 'y2';
+
 /** Total marks drawn (groups × series); decides animation and large mode. */
 export function pointCount(ctx: BuildContext, seriesCount = 1): number {
   return ctx.result.groups * Math.max(1, seriesCount);
 }
 
-/** Root option: surface, text style, animation policy. */
+/** Root option: surface (from `style.background`), text style, animation policy. */
 export function baseOption(ctx: BuildContext, points: number): OptionObject {
   const theme = themeOf(ctx);
+  const bg = ctx.spec.style.background;
   return {
-    backgroundColor: theme.bg,
-    textStyle: { fontFamily: theme.fontBody, color: theme.text },
+    backgroundColor: bg === 'transparent' ? 'transparent' : bg,
+    textStyle: { fontFamily: styleFonts(ctx).base, color: theme.text },
     animation: !ctx.isMobile && points <= ANIMATION_MAX_POINTS,
     animationDuration: 300,
   };
@@ -372,7 +437,7 @@ export function tooltip(ctx: BuildContext, trigger: 'item' | 'axis' = 'item', fo
     borderColor: theme.border,
     borderWidth: 1,
     padding: [6, 10],
-    textStyle: { color: theme.text, fontFamily: theme.fontBody, fontSize: 12 },
+    textStyle: { color: theme.text, fontFamily: styleFonts(ctx).base, fontSize: 12 },
     extraCssText: 'box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 8px;',
   };
   if (trigger === 'axis') tt.axisPointer = { type: 'line', lineStyle: { color: theme.tick, width: 1 } };
@@ -391,19 +456,25 @@ export function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c);
 }
 
-/** Legend: shown for ≥ 2 series when `spec.legend.show`; scrollable; text in text tokens. */
-export function legend(ctx: BuildContext, seriesNames: string[]): OptionObject {
+/**
+ * Legend: shown for ≥ 2 series when `spec.legend.show`; scrollable; text in
+ * text tokens. `icons` (name → `path://…`) draws an icon instead of the circle
+ * for that entry (Shape shelf, ICONS.md §7).
+ */
+export function legend(ctx: BuildContext, seriesNames: string[], icons?: Record<string, string>): OptionObject {
   const theme = themeOf(ctx);
+  const fonts = styleFonts(ctx);
   const show = ctx.spec.legend.show && seriesNames.length >= 2;
   const pos = ctx.spec.legend.position;
+  const data = icons ? seriesNames.map((n) => (icons[n] ? { name: n, icon: icons[n] } : n)) : seriesNames;
   const base: OptionObject = {
     show,
     type: 'scroll',
-    data: seriesNames,
+    data,
     icon: 'circle',
-    itemWidth: 10,
-    itemHeight: 10,
-    textStyle: { color: theme.textMuted, fontSize: 12 },
+    itemWidth: icons ? 14 : 10,
+    itemHeight: icons ? 14 : 10,
+    textStyle: { color: theme.textMuted, fontSize: fonts.legendText, fontFamily: fonts.legend },
     pageTextStyle: { color: theme.textMuted },
   };
   if (pos === 'right') return { ...base, orient: 'vertical', right: 8, top: 'middle' };
@@ -435,9 +506,10 @@ export function axisKind(pill: Pill | undefined): 'category' | 'time' | 'value' 
   return pill.role === 'measure' && pill.continuity === 'continuous' ? 'value' : 'category';
 }
 
-/** Common axis styling from the spec's `axes.x` / `axes.y` and the theme. */
-function axisStyle(ctx: BuildContext, which: 'x' | 'y', title: string | undefined): OptionObject {
+/** Common axis styling from `spec.axes[which]` (x, y or y2) and the theme; gridlines off removes the split lines. */
+function axisStyle(ctx: BuildContext, which: AxisId, title: string | undefined): OptionObject {
   const theme = themeOf(ctx);
+  const fonts = styleFonts(ctx);
   const a = ctx.spec.axes[which];
   const name = a.title === null ? undefined : (a.title ?? title);
   return {
@@ -445,17 +517,17 @@ function axisStyle(ctx: BuildContext, which: 'x' | 'y', title: string | undefine
     name,
     nameLocation: 'middle',
     nameGap: which === 'x' ? 28 : 44,
-    nameTextStyle: { color: theme.textMuted, fontSize: 12 },
+    nameTextStyle: { color: theme.textMuted, fontSize: fonts.axisTitle, fontFamily: fonts.axis },
     inverse: a.reversed,
     axisLine: { show: true, lineStyle: { color: theme.border } },
     axisTick: { show: false },
-    axisLabel: { color: theme.axisText, fontSize: 11, hideOverlap: true },
+    axisLabel: { color: theme.axisText, fontSize: fonts.axisLabel, fontFamily: fonts.axis, hideOverlap: true },
     splitLine: { show: a.gridlines, lineStyle: { color: theme.grid } },
   };
 }
 
 /** Category axis for a discrete pill with the given labels. */
-export function categoryAxis(ctx: BuildContext, which: 'x' | 'y', pill: Pill | undefined, labels: Array<string | number>): OptionObject {
+export function categoryAxis(ctx: BuildContext, which: AxisId, pill: Pill | undefined, labels: Array<string | number>): OptionObject {
   const fmt = dimFormatter(ctx, pill);
   const title = pill ? pillLabel(pill) : undefined;
   const style = axisStyle(ctx, which, title);
@@ -468,8 +540,12 @@ export function categoryAxis(ctx: BuildContext, which: 'x' | 'y', pill: Pill | u
   };
 }
 
-/** Value axis for a measure pill (or an unnamed one), honouring log/min/max and the tick format. */
-export function valueAxis(ctx: BuildContext, which: 'x' | 'y', pill: Pill | undefined, extra: OptionObject = {}): OptionObject {
+/**
+ * Value axis for a measure pill (or an unnamed one), honouring log/min/max,
+ * reversed, gridlines and the tick format of `spec.axes[which]`. `y2` is
+ * placed on the right (or on top when the builder is horizontal).
+ */
+export function valueAxis(ctx: BuildContext, which: AxisId, pill: Pill | undefined, extra: OptionObject = {}): OptionObject {
   const a = ctx.spec.axes[which];
   const fmt = pill ? makeFormatter(metaOf(ctx, pill.field), a.tickFormat ?? formatSpecOf(ctx, pill)) : (v: number) => String(v);
   const style = axisStyle(ctx, which, pill ? pillLabel(pill) : undefined);
@@ -477,6 +553,7 @@ export function valueAxis(ctx: BuildContext, which: 'x' | 'y', pill: Pill | unde
     ...style,
     type: a.log ? 'log' : 'value',
     axisLabel: { ...(style.axisLabel as OptionObject), formatter: (v: number) => fmt(v) },
+    ...(which === 'y2' ? { position: 'right' } : {}),
     ...extra,
   };
   if (typeof a.min === 'number') out.min = a.min;
@@ -485,14 +562,14 @@ export function valueAxis(ctx: BuildContext, which: 'x' | 'y', pill: Pill | unde
 }
 
 /** Time axis for a `trunc` date pill. */
-export function timeAxis(ctx: BuildContext, which: 'x' | 'y', pill: Pill | undefined): OptionObject {
+export function timeAxis(ctx: BuildContext, which: AxisId, pill: Pill | undefined): OptionObject {
   const fmt = dimFormatter(ctx, pill);
   const style = axisStyle(ctx, which, pill ? pillLabel(pill) : undefined);
   return { ...style, type: 'time', axisLabel: { ...(style.axisLabel as OptionObject), formatter: (v: number) => fmt(v) }, splitLine: { show: false } };
 }
 
 /** Axis for a Columns/Rows pill by its kind. */
-export function axisFor(ctx: BuildContext, which: 'x' | 'y', pill: Pill | undefined, labels: Array<string | number>): OptionObject {
+export function axisFor(ctx: BuildContext, which: AxisId, pill: Pill | undefined, labels: Array<string | number>): OptionObject {
   const kind = axisKind(pill);
   if (kind === 'time') return timeAxis(ctx, which, pill);
   if (kind === 'value') return valueAxis(ctx, which, pill);
@@ -502,6 +579,7 @@ export function axisFor(ctx: BuildContext, which: 'x' | 'y', pill: Pill | undefi
 /** Continuous `visualMap` from the color encoding (sequential, or diverging when a midpoint is present). */
 export function visualMap(ctx: BuildContext, min: number, max: number, formatter: ValueFormatter, seriesIndex = 0): OptionObject {
   const theme = themeOf(ctx);
+  const fonts = styleFonts(ctx);
   const { stops, domain, midpoint } = continuousStops(ctx);
   let lo = domain ? domain[0] : min;
   let hi = domain ? domain[1] : max;
@@ -524,7 +602,7 @@ export function visualMap(ctx: BuildContext, min: number, max: number, formatter
     inRange: { color: colors },
     outOfRange: { color: [theme.border] },
     text: [formatter(hi), formatter(lo)],
-    textStyle: { color: theme.textMuted, fontSize: 11 },
+    textStyle: { color: theme.textMuted, fontSize: fonts.legendText, fontFamily: fonts.legend },
     formatter: (v: number) => formatter(v),
   };
 }
@@ -532,13 +610,14 @@ export function visualMap(ctx: BuildContext, min: number, max: number, formatter
 /** Series label block from `marks.labels` formatted by the measure's formatter; text in text tokens. */
 export function seriesLabel(ctx: BuildContext, fmt: ValueFormatter, defaultPosition: string, valueOf?: (p: { value: unknown; name?: string }) => number | null): OptionObject {
   const theme = themeOf(ctx);
+  const fonts = styleFonts(ctx);
   const { show, position } = ctx.spec.marks.labels;
   return {
     show,
     position: position === 'auto' ? defaultPosition : position,
     color: theme.text,
-    fontSize: 11,
-    fontFamily: theme.fontMono,
+    fontSize: fonts.label,
+    fontFamily: fonts.labels,
     formatter: (p: { value: unknown; name?: string }) => {
       const v = valueOf ? valueOf(p) : (typeof p.value === 'number' ? p.value : Array.isArray(p.value) ? Number(p.value[p.value.length - 1]) : null);
       return v === null || v === undefined || Number.isNaN(v) ? '' : fmt(v);
@@ -563,6 +642,206 @@ export function applyNullHandling(values: Cell[], mode: VizSpec['marks']['nullHa
 }
 
 // ---------------------------------------------------------------------------
+// Cartesian model (dual axis, D-19)
+// ---------------------------------------------------------------------------
+
+/** One drawn series of a cartesian chart. */
+export interface ValueSeries {
+  /** Legend / tooltip name: the color label (one measure) or the measure label, suffixed for the right axis. */
+  name: string;
+  values: Cell[];
+  /** The measure pill the values come from. */
+  pill: Pill;
+  axis: 'primary' | 'secondary';
+}
+
+/** The series a cartesian builder draws, with the x positions they share. */
+export interface CartesianModel {
+  x: Array<string | number>;
+  xPill: Pill | undefined;
+  /** The Color dimension when exactly one measure is split by it. */
+  colorPill: Pill | undefined;
+  /** Measure pills on the value shelf in shelf order. */
+  measures: Pill[];
+  series: ValueSeries[];
+  hasSecondary: boolean;
+}
+
+/** Inputs of `cartesianModel`. */
+export interface ModelOptions {
+  horizontal?: boolean;
+  /** Measures from this index on draw on the secondary axis when they carry no `axis` (combo's default). */
+  secondaryFrom?: number;
+}
+
+/**
+ * Resolve the series of a cartesian chart. With one measure on the value
+ * shelf it is pivoted by the Color dimension (one series per color label);
+ * with several measures each becomes a series named after its pill (the Color
+ * dimension is not applied, `__meta.colorIgnored` tells the canvas). Time
+ * axes are sorted by x.
+ */
+export function cartesianModel(ctx: BuildContext, opts: ModelOptions = {}): CartesianModel {
+  const spec = ctx.spec;
+  const horizontal = opts.horizontal ?? false;
+  const catShelf = horizontal ? 'rows' : 'columns';
+  const mShelf = horizontal ? 'columns' : 'rows';
+  const xPill = dimsOn(spec, catShelf)[0] ?? dimsOn(spec, mShelf)[0] ?? firstDim(spec);
+  let measures = measuresOn(spec, mShelf);
+  if (measures.length === 0) measures = measuresOn(spec, catShelf);
+  if (measures.length === 0) measures = classify(spec).measures.slice(0, 1);
+  if (measures.length === 0) throw new Error(`${spec.chartType}: needs a measure`);
+  const colorPill = spec.shelves.color[0] && isDimPill(spec.shelves.color[0]) && spec.shelves.color[0].id !== xPill?.id ? spec.shelves.color[0] : undefined;
+  const xDim = dimOf(ctx, xPill);
+  const n = ctx.result.groups;
+  const axisFor = (p: Pill, i: number): 'primary' | 'secondary' => p.axis ? axisOf(p) : (opts.secondaryFrom !== undefined && i >= opts.secondaryFrom ? 'secondary' : 'primary');
+  const pivotOf = (m: Pill, sDim: ResultDim | undefined): Pivot => {
+    const rm = requireMeasure(ctx, m, 'the measure');
+    const p = xDim
+      ? pivot(n, xDim, sDim, rm, pillLabel(m), sDim ? seriesOrder(ctx) : undefined)
+      : { x: [pillLabel(m)], series: [{ name: pillLabel(m), values: [measureCells(rm, n).reduce<Cell>((t, v) => (v === null ? t : (t ?? 0) + v), null)] }] };
+    return axisKind(xPill) === 'time' ? sortByX(p) : p;
+  };
+  const series: ValueSeries[] = [];
+  let x: Array<string | number> = [];
+  if (measures.length === 1) {
+    const m = measures[0]!;
+    const p = pivotOf(m, dimOf(ctx, colorPill));
+    x = p.x;
+    const axis = axisFor(m, 0);
+    for (const s of p.series) series.push({ name: axis === 'secondary' ? `${s.name}${SECONDARY_SUFFIX}` : s.name, values: s.values, pill: m, axis });
+  } else {
+    measures.forEach((m, i) => {
+      const p = pivotOf(m, undefined);
+      if (i === 0) x = p.x;
+      const axis = axisFor(m, i);
+      const s = p.series[0]!;
+      series.push({ name: axis === 'secondary' ? `${s.name}${SECONDARY_SUFFIX}` : s.name, values: s.values, pill: m, axis });
+    });
+  }
+  return { x, xPill, colorPill: measures.length === 1 ? colorPill : undefined, measures, series, hasSecondary: series.some((s) => s.axis === 'secondary') };
+}
+
+/** Pivot the first Columns/Rows dimension against the Color dimension for the first measure (v1 shape, kept for bump/slope/histogram). */
+export function cartesianPivot(ctx: BuildContext, horizontal: boolean): { pivot: Pivot; xPill: Pill | undefined; mPill: Pill; colorPill: Pill | undefined } {
+  const m = cartesianModel(ctx, { horizontal });
+  return { pivot: { x: m.x, series: m.series.map((s) => ({ name: s.name, values: s.values })) }, xPill: m.xPill, mPill: m.measures[0]!, colorPill: m.colorPill };
+}
+
+/** Round an extent outwards to a "nice" step so a copied range still ends on a tick. */
+export function niceExtent(lo: number, hi: number): [number, number] {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [0, 1];
+  if (lo > 0) lo = 0;
+  if (hi < 0) hi = 0;
+  if (lo === hi) return [lo, lo + 1];
+  const span = hi - lo;
+  const step = 10 ** Math.floor(Math.log10(span)) / 2;
+  return [Math.floor(lo / step) * step, Math.ceil(hi / step) * step];
+}
+
+/** Data extent of the series on one axis (null cells skipped). */
+export function axisExtent(series: ValueSeries[], axis: 'primary' | 'secondary'): [number, number] {
+  let lo = Infinity; let hi = -Infinity;
+  for (const s of series) if (s.axis === axis) for (const v of s.values) if (v !== null) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  return [lo, hi];
+}
+
+/**
+ * The value axes of a model: the primary from `axes.y`, and when any series is
+ * secondary a second one from `axes.y2` on the right (top when horizontal).
+ * `axes.synchronized` copies the primary data range onto both axes unless the
+ * spec pins a numeric min/max on that axis. Axis titles join the measure labels.
+ */
+export function valueAxes(ctx: BuildContext, model: CartesianModel, horizontal: boolean, primaryExtra: OptionObject = {}): OptionObject[] {
+  const which: AxisId = horizontal ? 'x' : 'y';
+  const primaryPills = model.series.filter((s) => s.axis === 'primary').map((s) => s.pill);
+  const secondaryPills = model.series.filter((s) => s.axis === 'secondary').map((s) => s.pill);
+  const title = (pills: Pill[]) => [...new Set(pills.map(pillLabel))].join(' · ');
+  const primaryPill = primaryPills[0] ?? model.measures[0];
+  const primary = valueAxis(ctx, which, primaryPill, { ...(primaryPills.length > 1 ? { name: title(primaryPills) } : {}), ...primaryExtra });
+  if (!model.hasSecondary) return [primary];
+  const secondary = valueAxis(ctx, 'y2', secondaryPills[0], { position: horizontal ? 'top' : 'right', ...(secondaryPills.length > 1 ? { name: title(secondaryPills) } : {}) });
+  if (horizontal) secondary.nameGap = 28;
+  if (ctx.spec.axes.synchronized) {
+    const [lo, hi] = niceExtent(...axisExtent(model.series, 'primary'));
+    for (const [ax, id] of [[primary, which], [secondary, 'y2']] as Array<[OptionObject, AxisId]>) {
+      const a = ctx.spec.axes[id];
+      if (typeof a.min !== 'number') ax.min = lo;
+      if (typeof a.max !== 'number') ax.max = hi;
+    }
+  }
+  return [primary, secondary];
+}
+
+/** Tooltip params of an axis trigger, as the builders read them. */
+interface AxisTooltipPoint { seriesName: string; seriesIndex: number; value: unknown; color: string; axisValue?: string | number; axisValueLabel?: string; name?: string }
+
+/** Options of `axisTooltipFormatter`. */
+export interface AxisTooltipOptions {
+  xKind: 'category' | 'time' | 'value';
+  dimFmt: (v: string | number) => string;
+  /** Formatter for a data series by its index in the option. */
+  fmtFor: (seriesIndex: number) => ValueFormatter;
+  /** Value → display override (percent stacks, ranks). */
+  valueText?: (v: number, seriesIndex: number) => string;
+  decorations?: Decorations;
+}
+
+/** Shared axis-trigger tooltip: header is the x value, one row per series, trend rows only when `showEquation`. */
+export function axisTooltipFormatter(ctx: BuildContext, opts: AxisTooltipOptions): (params: unknown) => string {
+  const theme = themeOf(ctx);
+  const showEq = ctx.spec.trendLine.showEquation;
+  return (params: unknown) => {
+    const list = (Array.isArray(params) ? params : [params]) as AxisTooltipPoint[];
+    const head = list[0];
+    const rows: string[] = [];
+    for (const pt of list) {
+      const trend = trendTooltipText(pt.seriesName, opts.decorations, showEq);
+      if (trend === null) continue;
+      if (trend !== undefined) { rows.push(tooltipRow(pt.seriesName, trend, pt.color)); continue; }
+      const raw = Array.isArray(pt.value) ? pt.value[pt.value.length - 1] : pt.value;
+      if (raw === null || raw === undefined || Number.isNaN(Number(raw))) continue;
+      const v = Number(raw);
+      rows.push(tooltipRow(pt.seriesName, opts.valueText ? opts.valueText(v, pt.seriesIndex) : opts.fmtFor(pt.seriesIndex)(v), pt.color));
+    }
+    const label = opts.xKind === 'time' && typeof head?.axisValue === 'number' ? opts.dimFmt(head.axisValue) : opts.dimFmt(String(head?.axisValueLabel ?? head?.axisValue ?? head?.name ?? ''));
+    return `<div style="color:${theme.textMuted};margin-bottom:4px">${escapeHtml(label)}</div>${rows.join('')}`;
+  };
+}
+
+/** Build the decorations of a model (reference lines, trend lines, annotations) or `undefined` when the spec has none. */
+export function decorationsFor(ctx: BuildContext, model: CartesianModel, horizontal: boolean, colors: string[], xKind: 'category' | 'time' | 'value' = axisKind(model.xPill)): Decorations | undefined {
+  if (!hasDecorations(ctx.spec)) return undefined;
+  const series: DecorationSeries[] = model.series.map((s) => ({ name: s.name, values: s.values, axis: s.axis, pill: s.pill }));
+  return cartesianDecorations({
+    spec: ctx.spec, theme: themeOf(ctx), horizontal, xKind, x: model.x, series, colors,
+    formatters: model.series.map((s) => formatterFor(ctx, s.pill)), fontSize: styleFonts(ctx).label,
+  });
+}
+
+/** Stack id per value axis: series on different axes never stack together. */
+export function stackId(axis: 'primary' | 'secondary'): string {
+  return axis === 'primary' ? 'total' : 'total-secondary';
+}
+
+/** `__meta` entries shared by the cartesian builders. */
+function cartesianMeta(spec: VizSpec, model: CartesianModel, deco: Decorations | undefined): OptionObject {
+  const notes = deco?.skipped ?? [];
+  const colorDim = spec.shelves.color[0];
+  return {
+    seriesCount: model.series.length,
+    measure: pillLabel(model.measures[0]!),
+    measures: model.measures.map(pillLabel),
+    colorPill: model.colorPill?.id ?? null,
+    /** Several measures on the value shelf: the Color dimension is not applied (one series per measure instead). */
+    colorIgnored: model.measures.length > 1 && colorDim !== undefined && isDimPill(colorDim),
+    dualAxis: model.hasSecondary,
+    annotations: deco?.annotations ?? [],
+    ...(notes.length ? { notes } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Shared cartesian builders
 // ---------------------------------------------------------------------------
 
@@ -574,69 +853,51 @@ export interface BarOptions {
   colors?: string[];
 }
 
-/** Pivot the first Columns/Rows dimension against the Color dimension for the first measure. */
-export function cartesianPivot(ctx: BuildContext, horizontal: boolean): { pivot: Pivot; xPill: Pill | undefined; mPill: Pill; colorPill: Pill | undefined } {
-  const spec = ctx.spec;
-  const catShelf = horizontal ? 'rows' : 'columns';
-  const mShelf = horizontal ? 'columns' : 'rows';
-  const xPill = dimsOn(spec, catShelf)[0] ?? dimsOn(spec, mShelf)[0] ?? firstDim(spec);
-  const mPill = measuresOn(spec, mShelf)[0] ?? measuresOn(spec, catShelf)[0] ?? classify(spec).measures[0];
-  if (!mPill) throw new Error(`${spec.chartType}: needs a measure`);
-  const colorPill = spec.shelves.color[0] && isDimPill(spec.shelves.color[0]) && spec.shelves.color[0].id !== xPill?.id ? spec.shelves.color[0] : undefined;
-  const m = requireMeasure(ctx, mPill, 'the measure');
-  const xDim = dimOf(ctx, xPill);
-  const sDim = dimOf(ctx, colorPill);
-  const n = ctx.result.groups;
-  const p = xDim
-    ? pivot(n, xDim, sDim, m, pillLabel(mPill), seriesOrder(ctx))
-    : { x: [pillLabel(mPill)], series: [{ name: pillLabel(mPill), values: [measureCells(m, n).reduce<Cell>((t, v) => (v === null ? t : (t ?? 0) + v), null)] }] };
-  return { pivot: axisKind(xPill) === 'time' ? sortByX(p) : p, xPill, mPill, colorPill };
-}
-
-/** Bar / horizontal / grouped / stacked / 100 % builder. */
+/** Bar / horizontal / grouped / stacked / 100 % builder; secondary-axis measures draw on the right axis. */
 export function cartesianBars(ctx: BuildContext, opts: BarOptions = {}): OptionObject {
   const horizontal = opts.horizontal ?? false;
-  const { pivot: p, xPill, mPill, colorPill } = cartesianPivot(ctx, horizontal);
+  const model = cartesianModel(ctx, { horizontal });
   const stack = opts.stack ?? 'none';
-  const names = p.series.map((s) => s.name);
+  const names = model.series.map((s) => s.name);
   const colors = opts.colors ?? seriesColors(ctx, names);
-  const fmt = formatterFor(ctx, mPill);
   const theme = themeOf(ctx);
-  const dimFmt = dimFormatter(ctx, xPill);
-  const points = pointCount(ctx, p.series.length);
-  const grouped = stack === 'none' && p.series.length > 1;
-  const series = p.series.map((s, i) => ({
+  const dimFmt = dimFormatter(ctx, model.xPill);
+  const points = pointCount(ctx, model.series.length);
+  const grouped = stack === 'none' && model.series.length > 1;
+  const fmts = model.series.map((s) => formatterFor(ctx, s.pill));
+  const axisIndexKey = horizontal ? 'xAxisIndex' : 'yAxisIndex';
+  const series: OptionObject[] = model.series.map((s, i) => ({
     type: 'bar',
     name: s.name,
     data: s.values.map(cellData),
-    stack: stack === 'none' ? undefined : 'total',
+    stack: stack === 'none' ? undefined : stackId(s.axis),
+    [axisIndexKey]: s.axis === 'secondary' ? 1 : 0,
     barGap: grouped ? '10%' : `${Math.round(ctx.spec.marks.barGap * 100)}%`,
     barCategoryGap: `${Math.round(ctx.spec.marks.barGap * 100)}%`,
     barMaxWidth: 48,
     itemStyle: { color: colors[i] ?? theme.border, opacity: ctx.spec.marks.opacity, borderRadius: stack === 'none' ? (horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]) : 0, borderColor: theme.bg, borderWidth: stack === 'none' ? 0 : 1 },
     emphasis: { focus: 'series' },
-    label: seriesLabel(ctx, fmt, horizontal ? 'right' : 'top'),
+    label: seriesLabel(ctx, fmts[i]!, horizontal ? 'right' : 'top'),
     large: points > LARGE_SCATTER_POINTS,
   }));
-  const catAxis = categoryAxis(ctx, horizontal ? 'y' : 'x', xPill, p.x);
-  const valAxis = valueAxis(ctx, horizontal ? 'x' : 'y', mPill, stack === 'percent' ? { max: 1, axisLabel: { color: theme.axisText, fontSize: 11, formatter: (v: number) => `${Math.round(v * 100)}%` } } : {});
-  const tooltipFmt = (params: unknown) => {
-    const list = Array.isArray(params) ? params : [params];
-    const head = list[0] as { axisValueLabel?: string; name?: string } | undefined;
-    const rows = (list as Array<{ seriesName: string; value: number | null; color: string }>)
-      .filter((pt) => pt.value !== null && pt.value !== undefined)
-      .map((pt) => tooltipRow(pt.seriesName, stack === 'percent' ? `${(Number(pt.value) * 100).toFixed(1)}%` : fmt(Number(pt.value)), pt.color));
-    return `<div style="color:${theme.textMuted};margin-bottom:4px">${escapeHtml(dimFmt(head?.axisValueLabel ?? head?.name ?? ''))}</div>${rows.join('')}`;
-  };
+  const deco = decorationsFor(ctx, model, horizontal, colors, 'category');
+  const catAxis = categoryAxis(ctx, horizontal ? 'y' : 'x', model.xPill, model.x);
+  const percentExtra: OptionObject = stack === 'percent' ? { max: 1, axisLabel: { color: theme.axisText, fontSize: styleFonts(ctx).axisLabel, formatter: (v: number) => `${Math.round(v * 100)}%` } } : {};
+  const valAxes = valueAxes(ctx, model, horizontal, percentExtra);
+  const valAxis = valAxes.length === 1 ? valAxes[0]! : valAxes;
+  const tooltipFmt = axisTooltipFormatter(ctx, {
+    xKind: 'category', dimFmt, fmtFor: (i) => fmts[i] ?? fmts[0]!, decorations: deco,
+    ...(stack === 'percent' ? { valueText: (v: number) => `${(v * 100).toFixed(1)}%` } : {}),
+  });
   return {
     ...baseOption(ctx, points),
     tooltip: tooltip(ctx, 'axis', tooltipFmt),
     legend: legend(ctx, names),
-    grid: gridBox(ctx, names.length),
+    grid: gridBox(ctx, names.length, model.hasSecondary && !horizontal ? { right: ctx.spec.legend.show && names.length >= 2 && ctx.spec.legend.position === 'right' ? 140 : 24 } : {}),
     xAxis: horizontal ? valAxis : catAxis,
     yAxis: horizontal ? catAxis : valAxis,
-    series,
-    __meta: { stack, colorPill: colorPill?.id ?? null, seriesCount: names.length, measure: pillLabel(mPill) },
+    series: deco ? applyDecorations(series, deco) : series,
+    __meta: { ...cartesianMeta(ctx.spec, model, deco), stack },
   };
 }
 
@@ -644,10 +905,12 @@ export function cartesianBars(ctx: BuildContext, opts: BarOptions = {}): OptionO
 export interface LineOptions {
   area?: boolean;
   stack?: boolean;
+  /** Each x column as shares of its total (100 % area). */
+  percent?: boolean;
   smooth?: boolean;
   /** Ranks: invert the y axis and show integer ticks. */
   inverted?: boolean;
-  /** Pre-built pivot (bump, slope); default `cartesianPivot`. */
+  /** Pre-built pivot (bump, slope); default `cartesianModel`. */
   pivot?: Pivot;
   xPill?: Pill | undefined;
   mPill?: Pill;
@@ -657,29 +920,39 @@ export interface LineOptions {
   step?: boolean;
 }
 
-/** Line / area / bump / slope builder: one series per color value, LTTB above 2K points, nulls per `marks.nullHandling`. */
+/** Line / area / bump / slope builder: one series per color value or measure, LTTB above 2K points, nulls per `marks.nullHandling`. */
 export function cartesianLines(ctx: BuildContext, opts: LineOptions = {}): OptionObject {
-  const base = opts.pivot ? { pivot: opts.pivot, xPill: opts.xPill, mPill: opts.mPill } : cartesianPivot(ctx, false);
-  const p = base.pivot;
-  const xPill = base.xPill;
-  const mPill = base.mPill;
-  if (!mPill) throw new Error(`${ctx.spec.chartType}: needs a measure`);
-  const names = p.series.map((s) => s.name);
+  let model: CartesianModel;
+  if (opts.pivot) {
+    if (!opts.mPill) throw new Error(`${ctx.spec.chartType}: needs a measure`);
+    const m = opts.mPill;
+    model = { x: opts.pivot.x, xPill: opts.xPill, colorPill: undefined, measures: [m], series: opts.pivot.series.map((s) => ({ name: s.name, values: s.values, pill: m, axis: 'primary' as const })), hasSecondary: false };
+  } else {
+    model = cartesianModel(ctx, { horizontal: false });
+  }
+  let excludedNegatives = 0;
+  if (opts.percent) {
+    const r = percentStack({ x: model.x, series: model.series.map((s) => ({ name: s.name, values: s.values })) });
+    excludedNegatives = r.excludedNegatives;
+    model = { ...model, series: model.series.map((s, i) => ({ ...s, values: r.pivot.series[i]!.values })) };
+  }
+  const names = model.series.map((s) => s.name);
   const colors = opts.colors ?? seriesColors(ctx, names);
-  const fmt = formatterFor(ctx, mPill);
-  const dimFmt = dimFormatter(ctx, xPill);
+  const fmts = model.series.map((s) => formatterFor(ctx, s.pill));
+  const dimFmt = dimFormatter(ctx, model.xPill);
   const theme = themeOf(ctx);
   const marks = ctx.spec.marks;
-  const kind = axisKind(xPill);
-  const points = pointCount(ctx, p.series.length);
-  const perSeries = p.x.length;
+  const kind = axisKind(model.xPill);
+  const points = pointCount(ctx, model.series.length);
+  const perSeries = model.x.length;
   const connect = marks.nullHandling === 'connect';
-  const series = p.series.map((s, i) => {
+  const series = model.series.map((s, i) => {
     const data = applyNullHandling(s.values, marks.nullHandling);
     const obj: OptionObject = {
       type: 'line',
       name: s.name,
-      data: kind === 'time' ? data.map((v, xi) => [p.x[xi], v]) : data,
+      data: kind === 'time' ? data.map((v, xi) => [model.x[xi], v]) : data,
+      yAxisIndex: s.axis === 'secondary' ? 1 : 0,
       smooth: opts.smooth ?? marks.smooth,
       step: opts.step ? 'middle' : false,
       showSymbol: opts.showPoints ?? marks.showPoints,
@@ -690,40 +963,39 @@ export function cartesianLines(ctx: BuildContext, opts: LineOptions = {}): Optio
       lineStyle: { width: marks.lineWidth, color: colors[i] ?? theme.border },
       itemStyle: { color: colors[i] ?? theme.border, borderColor: theme.bg, borderWidth: 2 },
       emphasis: { focus: 'series' },
-      label: seriesLabel(ctx, fmt, 'top'),
+      label: seriesLabel(ctx, fmts[i]!, 'top'),
     };
     if (opts.area) {
       obj.areaStyle = { color: colors[i] ?? theme.border, opacity: opts.stack ? Math.min(marks.opacity, 0.85) : Math.min(marks.opacity, 0.5) };
-      if (opts.stack) obj.stack = 'total';
+      if (opts.stack) obj.stack = stackId(s.axis);
     } else {
       obj.lineStyle = { ...(obj.lineStyle as OptionObject), opacity: marks.opacity };
     }
     return obj;
   });
-  const xAxis = kind === 'time' ? timeAxis(ctx, 'x', xPill) : kind === 'value' ? valueAxis(ctx, 'x', xPill) : { ...categoryAxis(ctx, 'x', xPill, p.x), boundaryGap: false };
-  const yAxis = valueAxis(ctx, 'y', opts.inverted ? undefined : mPill, opts.inverted
-    ? { inverse: !ctx.spec.axes.y.reversed, min: 1, max: Math.max(1, p.series.length), minInterval: 1, name: opts.yAxisName ?? 'Rank', axisLabel: { color: theme.axisText, fontSize: 11, formatter: (v: number) => `#${v}` } }
-    : {});
-  const tooltipFmt = (params: unknown) => {
-    const list = Array.isArray(params) ? params : [params];
-    const head = list[0] as { axisValue?: string | number; axisValueLabel?: string } | undefined;
-    const rows = (list as Array<{ seriesName: string; value: unknown; color: string }>)
-      .map((pt) => ({ pt, v: Array.isArray(pt.value) ? pt.value[1] : pt.value }))
-      .filter((e) => e.v !== null && e.v !== undefined && !Number.isNaN(Number(e.v)))
-      .map((e) => tooltipRow(e.pt.seriesName, opts.inverted ? `#${Number(e.v)}` : fmt(Number(e.v)), e.pt.color));
-    const label = kind === 'time' && typeof head?.axisValue === 'number' ? dimFmt(head.axisValue) : String(head?.axisValueLabel ?? head?.axisValue ?? '');
-    return `<div style="color:${theme.textMuted};margin-bottom:4px">${escapeHtml(label)}</div>${rows.join('')}`;
-  };
+  const deco = opts.inverted ? undefined : decorationsFor(ctx, model, false, colors, kind);
+  const xAxis = kind === 'time' ? timeAxis(ctx, 'x', model.xPill) : kind === 'value' ? valueAxis(ctx, 'x', model.xPill) : { ...categoryAxis(ctx, 'x', model.xPill, model.x), boundaryGap: false };
+  const fonts = styleFonts(ctx);
+  const primaryExtra: OptionObject = opts.inverted
+    ? { inverse: !ctx.spec.axes.y.reversed, min: 1, max: Math.max(1, model.series.length), minInterval: 1, name: opts.yAxisName ?? 'Rank', axisLabel: { color: theme.axisText, fontSize: fonts.axisLabel, formatter: (v: number) => `#${v}` } }
+    : opts.percent ? { max: 1, axisLabel: { color: theme.axisText, fontSize: fonts.axisLabel, formatter: (v: number) => `${Math.round(v * 100)}%` } } : {};
+  const yAxes = opts.inverted
+    ? [valueAxis(ctx, 'y', undefined, primaryExtra)]
+    : valueAxes(ctx, model, false, primaryExtra);
+  const tooltipFmt = axisTooltipFormatter(ctx, {
+    xKind: kind, dimFmt, fmtFor: (i) => fmts[i] ?? fmts[0]!, decorations: deco,
+    ...(opts.inverted ? { valueText: (v: number) => `#${v}` } : opts.percent ? { valueText: (v: number) => `${(v * 100).toFixed(1)}%` } : {}),
+  });
   return {
     ...baseOption(ctx, points),
     tooltip: tooltip(ctx, 'axis', tooltipFmt),
     legend: legend(ctx, names),
-    grid: gridBox(ctx, names.length),
+    grid: gridBox(ctx, names.length, model.hasSecondary ? { right: ctx.spec.legend.show && names.length >= 2 && ctx.spec.legend.position === 'right' ? 140 : 24 } : {}),
     xAxis,
-    yAxis,
+    yAxis: yAxes.length === 1 ? yAxes[0]! : yAxes,
     dataZoom: dataZoomInside('x'),
-    series,
-    __meta: { seriesCount: names.length, sampled: perSeries > LTTB_MIN_POINTS, measure: pillLabel(mPill) },
+    series: deco ? applyDecorations(series, deco) : series,
+    __meta: { ...cartesianMeta(ctx.spec, model, deco), sampled: perSeries > LTTB_MIN_POINTS, ...(opts.percent ? { excludedNegatives } : {}) },
   };
 }
 

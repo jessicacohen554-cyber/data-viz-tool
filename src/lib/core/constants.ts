@@ -60,6 +60,7 @@ export const CHART_TYPE_IDS: readonly ChartTypeId[] = [
   'slope', 'bump',
   'candlestick',
   'kpi', 'text-table',
+  'area-stacked', 'area-100', 'combo', 'envelope', 'map-choropleth', 'map-symbol',
 ];
 
 /**
@@ -67,9 +68,7 @@ export const CHART_TYPE_IDS: readonly ChartTypeId[] = [
  * shard moves each id into CHART_TYPE_IDS as it registers it; the registry test
  * checks CHART_TYPE_IDS only, so `main` stays green while shards are in flight.
  */
-export const PENDING_CHART_TYPE_IDS: readonly ChartTypeId[] = [
-  'area-stacked', 'area-100', 'combo', 'envelope', 'map-choropleth', 'map-symbol',
-];
+export const PENDING_CHART_TYPE_IDS: readonly ChartTypeId[] = [];
 
 /** Geographic roles in menu order. */
 export const GEO_ROLES: readonly GeoRole[] = ['country', 'us-state', 'us-county', 'ercot-zone', 'latitude', 'longitude'];

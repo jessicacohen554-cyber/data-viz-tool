@@ -4,7 +4,7 @@
  * the offending field ("`year` has 7 values; needs 2 — add a filter").
  */
 import type { ChartDef } from '../registry';
-import { PAIR_COLORS, cartesianLines, classify, dimOf, dimsOn, measuresOn, pillLabel, requireDim, requireMeasure, seriesColors, seriesOrder, svgIcon, themeOf } from '../option-common';
+import { DECORATION_MODULES, PAIR_COLORS, cartesianLines, classify, dimOf, dimsOn, measuresOn, pillLabel, requireDim, requireMeasure, seriesColors, seriesOrder, svgIcon, themeOf } from '../option-common';
 import { distinct, pivot } from '../transforms';
 
 export const slope: ChartDef = {
@@ -24,7 +24,7 @@ export const slope: ChartDef = {
   },
   channels: ['color', 'label', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['LineChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'LabelLayout', 'CanvasRenderer'],
+  echartsModules: ['LineChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'LabelLayout', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => {
     const spec = ctx.spec;
     const xPill = dimsOn(spec, 'columns')[0] ?? classify(spec).dims[0];

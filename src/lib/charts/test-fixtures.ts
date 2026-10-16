@@ -5,6 +5,8 @@
  */
 import type { Aggregation, ChartTypeId, FieldMeta, Pill, QueryResult, ResultDim, ResultMeasure, ShelfId, VizSpec } from '../core/types';
 import { createDefaultSpec } from '../core/spec-defaults';
+import type { GeoFeature, GeoJson, GeoLayer } from './geo';
+import { registerGeoLayer } from './geo-loader';
 
 let seq = 0;
 
@@ -63,6 +65,23 @@ export function fieldMeta(name: string, type: FieldMeta['type'] = 'string', card
 /** Epoch ms of a UTC calendar day. */
 export function day(y: number, m: number, d: number): number {
   return Date.UTC(y, m - 1, d);
+}
+
+/**
+ * A tiny GeoJSON layer of two unit squares, `North` (x 0..1, y 1..2) and
+ * `South` (x 0..1, y 0..1), keyed by `zone` and `code`, registered as
+ * `test-zones` so map builders can join against it without fetching.
+ */
+export function zonesLayer(): GeoLayer {
+  const square = (x0: number, y0: number): GeoFeature['geometry'] => ({ type: 'Polygon', coordinates: [[[x0, y0], [x0 + 1, y0], [x0 + 1, y0 + 1], [x0, y0 + 1], [x0, y0]]] });
+  const geojson: GeoJson = {
+    type: 'FeatureCollection',
+    features: [
+      { type: 'Feature', properties: { zone: 'North', code: 'N' }, geometry: square(0, 1) },
+      { type: 'Feature', properties: { zone: 'South', code: 'S' }, geometry: square(0, 0) },
+    ],
+  };
+  return registerGeoLayer({ id: 'test-zones', file: 'test-zones.geojson', label: 'Test zones', kind: 'choropleth', keyProps: ['zone', 'code'] }, geojson);
 }
 
 /** The 3-row, 2-column trivial fixture: zone × SUM(price). */

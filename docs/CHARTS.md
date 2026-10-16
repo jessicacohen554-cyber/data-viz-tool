@@ -2,7 +2,9 @@
 
 # Charts
 
-33 chart types. **D** = discrete dimension pill, **M** = measure pill,
+39 chart types: the 33 of v0.1 and six added in v0.2 (`area-stacked`,
+`area-100`, `combo`, `envelope`, `map-choropleth`, `map-symbol`; D-13, D-15,
+D-19). **D** = discrete dimension pill, **M** = measure pill,
 **T** = date pill, **C** = continuous pill (a `trunc` date or a measure on an
 axis). "Minimum shelves" is `ChartDef.requires`; "Channels" is
 `ChartDef.channels` (which Marks-card shelves the type honours — a pill on an
@@ -13,7 +15,7 @@ is built. Every ECharts type is registered through `echarts/core` in
 cross-checks the two lists). `renderer: 'dom'` types are Svelte components in
 `src/lib/ui/chart/`.
 
-## 1. The 33 types
+## 1. The 39 types
 
 | # | `id` | Label | Group | ECharts series | Minimum shelves | Channels honoured | Transform | Notes / edge cases |
 |---|---|---|---|---|---|---|---|---|
@@ -50,11 +52,17 @@ cross-checks the two lists). `renderer: 'dom'` types are Svelte components in
 | 31 | `candlestick` | Candlestick | Finance | `candlestick` | 1 T + 4 M **in order** open, close, low, high | color (fixed up/down), tooltip | `ohlc` (pill order validated; `low ≤ open,close ≤ high` violations → toast, row dropped) | rising `--positive`, falling `--negative`; `dataZoom` inside |
 | 32 | `kpi` | KPI tile | Text | DOM (`renderer: 'dom'`) | 1 M | label (secondary M as delta), tooltip | none | formatted by the M's `FormatSpec`, `automatic` with units `auto`; delta colored by sign |
 | 33 | `text-table` | Text table | Text | DOM (`renderer: 'dom'`) | any (0 D and 0 M allowed → the raw first 200 rows) | label (which measures to show), tooltip | `grid`; virtualised above 200 rows | numbers right-aligned mono; row header per D; column per M; CSV export is this table |
+| 34 | `area-stacked` | Stacked area | Lines | `line` (`areaStyle`, `stack`) | 1 C/T + 1 M (+ color D, or several M) | color, label, detail, tooltip | `pivot`, `stack`, `lttb` | always stacked whatever `marks.stacking` says; several M on Rows → one series per M (Color not applied, toast) |
+| 35 | `area-100` | 100% stacked area | Lines | `line` (`areaStyle`, `stack`) | 1 C/T + 1 M + color D (or several M) | color, label, detail, tooltip | `pivot`, `percentStack`, `lttb` | y axis fixed 0–100 %; negatives excluded from the denominator with a toast (`__meta.excludedNegatives`) |
+| 36 | `combo` | Combo (bar + line) | Lines | `bar` + `line` (two `yAxis`) | 1 D/T + ≥ 1 M on Rows | color (one M only), label, detail, tooltip | `cartesianModel` (one series per M) | `marks.markByAxis` picks bar / line / area per axis (default bar left, line right); M without `Pill.axis`: the first is primary, the rest secondary; a trunc date draws as categories so bars keep width |
+| 37 | `envelope` | Envelope | Distribution | `line` ×(2 per band + 1) | 1 C/T on Columns + 1 M (percentile mode) or low + high (+ mid) M (columns mode) | color (hue), tooltip | `percentile`: `result.bands`; `columns`: the pills | nested bands as a transparent base + filled span on their own stack, outer band lightest; legend lists the levels (`P5–P95`, `P25–P75`, median); percentile mode without `result.bands` fails naming `QueryPlan.bands` (see §9) |
+| 38 | `map-choropleth` | Filled map | Maps | `map` (+ `visualMap`) | 1 D with an area geo role (or `spec.geoLayer`) + 0–1 M | color (the M), label, detail, tooltip | `joinRegions` | regions keyed by the layer's `keyProps` (name / code / fips / zone, best match wins → `nameProperty`); unmatched values in `__meta.unmatched` (toast); `marks.mapMark` `label` draws names instead of a fill |
+| 39 | `map-symbol` | Symbol map | Maps | `scatter` / `effectScatter` / `heatmap` on `geo` | lat + lon M, or 1 area-role D (centroids) | color (D → series, M → gradient), size, shape (icons), label, detail, tooltip | `centroid` per matched region | `marks.mapMark` `symbol` (default) \| `bubble` (default with a Size pill, sqrt scale in `sizeRange`) \| `heat`; `marks.extra.ripple` → `effectScatter`; rows without a location counted in `__meta.unplaced`; disaggregated unless a D groups the marks |
 
 ### Group order in the picker
 
 Bars → Lines → Points → Parts of whole → Hierarchy → Grid → Distribution →
-Comparison → Multivariate → Flow → Rank / change → Finance → Text.
+Comparison → Multivariate → Flow → Rank / change → Finance → Maps → Text.
 
 ### Common behaviour (every type)
 
@@ -68,15 +76,27 @@ Comparison → Multivariate → Flow → Rank / change → Finance → Text.
   hatch read only by that type's builder.
 - Animation is off above 5K points or on mobile; tooltips
   `transitionDuration: 0`, `confine: true`.
+- Every ECharts option passes through the style pass (§6) and, for the
+  cartesian families, the decorations (§5); the bar and line families take
+  every measure on the value shelf and honour `Pill.axis` (§4).
 
 ## 2. Show Me priority
 
 `suggest()` runs after a drop when the user has not pinned a chart type:
 
-1. `bar` — if ≥ 1 D and ≥ 1 M
-2. `line` — if a T (or continuous C) is on Columns or Rows and ≥ 1 M
-3. `scatter` — if ≥ 2 M and 0 D
-4. `text-table` — otherwise (including 0 M)
+1. `map-choropleth` — if a D carries an area geo role assigned by inference
+   or the user (`FieldMeta.geoRole` / `typeOverrides`; the name fallback of
+   §7 never suggests) and ≥ 1 M
+2. `bar` — if ≥ 1 D and ≥ 1 M
+3. `line` — if a T (or continuous C) is on Columns or Rows and ≥ 1 M
+4. `scatter` — if ≥ 2 M and 0 D
+5. `text-table` — otherwise (including 0 M)
+
+Eligibility rules the v2 types add (`Requirement.exact`): `envelope` needs a
+date or continuous field on Columns plus one measure, or low and high
+measures on Rows in `columns` mode; the maps need a dimension with an area geo
+role (role, override, name fallback or an explicit `spec.geoLayer`), or
+latitude + longitude measures.
 
 Within the picker, eligible types are ordered by the group order above; the
 suggested type is marked "Recommended".
@@ -92,7 +112,11 @@ M₁… the measures; T the first date pill.
 | `bar`, `lollipop`, `waterfall`, `bullet` | D₁ | M₁ | D₂ (if any) | — | bullet: M₂ → target |
 | `bar-h` | M₁ | D₁ | D₂ | — | |
 | `bar-grouped`, `bar-stacked`, `bar-stacked-100` | D₁ | M₁ | D₂ (required) | — | |
-| `line`, `area`, `bump`, `candlestick` | T (or C) | M₁ (candlestick: M₁–M₄) | D₁ | — | `line` with no T → first C |
+| `line`, `area`, `area-stacked`, `area-100`, `bump`, `candlestick` | T (or C) | M₁ (candlestick: M₁–M₄) | D₁ | — | `line` with no T → first C |
+| `combo` | T (or D₁) | M₁, M₂… (M₂… get `axis: 'secondary'` unless set) | D₂ | — | |
+| `envelope` | T (or D₁) | M₁ (percentile) or M₁, M₂, M₃ = low, high, mid | — | — | |
+| `map-choropleth` | geo D (by name; else D₁) | — | M₁ | — | other D → Detail |
+| `map-symbol` | geo D, else the longitude M | the latitude M | D (not geo) | first non-coordinate M | |
 | `streamgraph` | T | M₁ | D₁ | — | |
 | `scatter`, `bubble`, `parallel` | M₁ | M₂ | D₁ | M₃ (bubble) | parallel: all M stay as axes (Columns) |
 | `pie`, `donut`, `funnel` | — | — | D₁ | M₁ | |
@@ -106,3 +130,142 @@ M₁… the measures; T the first date pill.
 | `radar` | — | M₁… | D₁ | — | |
 | `sankey` | D₁, D₂… | — | — | M₁ | |
 | `text-table` | — | D₁, D₂… | — | — | M₁… → Label |
+
+## 4. Dual axis (D-19)
+
+The bar family (`bar`, `bar-h`, `bar-grouped`, `bar-stacked`,
+`bar-stacked-100`, `histogram`), the line family (`line`, `area`,
+`area-stacked`, `area-100`) and `combo` build from `cartesianModel()` in
+`option-common.ts`:
+
+- One measure on the value shelf → pivoted by the Color dimension (one series
+  per color label), as in v0.1.
+- Several measures → one series per measure named `AGG(field)`; the Color
+  dimension is not applied (`__meta.colorIgnored`, toast).
+- A measure pill with `axis: 'secondary'` draws on `yAxis[1]` (right side; a
+  second `xAxis` on top for `bar-h`), styled from `axes.y2` (gridlines, log,
+  reversed, min/max, title, tick format). Its series name carries
+  ` (right)` so legend and tooltip name the axis. Stacks are per axis
+  (`total` / `total-secondary`).
+- `axes.synchronized` copies the primary data extent (rounded outwards to a
+  half-decade step, zero included) onto both axes unless the spec pins a
+  numeric min/max on that axis.
+
+`combo` defaults a measure without `axis` to primary for the first and
+secondary for the rest; the other families default every measure to primary.
+`scatter`, `bubble` and the one-off builders (lollipop, waterfall, bullet,
+dumbbell, radar, …) have no secondary axis.
+
+## 5. Decorations (D-16): reference lines, trend lines, annotations
+
+`decorations.ts` turns the spec's `referenceLines`, `trendLine` and
+`annotations` into mark fragments on the series a cartesian builder already
+has (bars, lines, combo, scatter and bubble; not the rank-inverted `bump`).
+
+| Spec | ECharts | Rules |
+|---|---|---|
+| `ReferenceLine` kind `constant` / `average` / `median` / `min` / `max` / `percentile` | `markLine` item on the first series of the target axis (`y` primary, `y2` secondary, `x`) | statistics from `summary()` over the pooled values of that axis (`scope: 'all'`) or each series (`per-series`, one line per series); label `Avg 37.5`, `P90 …`, or `label`; `dash` → dashed; `color` or `--text-muted` |
+| kind `band` | `markArea` from `from` to `to` (constants or `min` / `average` / `median` / `p25` / `max` / `p75`) | 8 % fill of the line color |
+| `axis: 'x'` on a category axis | constant only (names a category or its index) | a statistic there has no numeric sample and is skipped with a note (`__meta.notes`) |
+| `TrendLine` | one dashed `line` series per data series (`<name> trend`), or one `All trend` when `perSeries` is false | `fit(xs, ys, model, degree)`; x = category index, days since the first point (time axes) or the raw value (scatter, 50 sampled points); trend series are kept out of the legend; the tooltip shows `y = … · R² 0.987` when `showEquation`, nothing otherwise |
+| `Annotation` | `markPoint` (small navy dot) at `[x, y]` on the series named by `seriesKey` (else the first), with the text as label at `offset` | `y` defaults to the series value at `x`; a note whose `x` is not in the result is skipped with a note; anchors are exposed in `__meta.annotations` |
+
+`ChartCanvas` lays a transparent draggable handle over each annotation
+label (graphic ids `ann:<id>`) and, when the drag ends, emits
+`onAnnotationDrag(id, offset)`; the label itself moves when the spec patch
+re-renders. A click on any series mark emits
+`onMarkClick({ x, y, seriesKey, pixel })` (`src/lib/ui/chart/events.ts`).
+
+## 6. Style (D-14, D-16)
+
+`style.ts` runs after every ECharts builder (`buildOption` →
+`applyStyle`) and the builders read `styleFonts()` for their own sizes:
+
+- `fontFamily` (ids of `FONT_FAMILIES`; `inherit` = the app font) on the root
+  text style, axes, legend, visualMap and tooltip; `axis.fontFamily`,
+  `labels.fontFamily`, `legend.fontFamily` override per part (series labels
+  stay in the mono token unless `labels.fontFamily` is set). `fonts.ts`
+  (`lib/ui/chart`) injects the Google Fonts `<link>` once per family;
+  families without a `google` spec are system stacks and need no request.
+- `fontScale` multiplies every size (`axis.size`, `axis.titleSize`,
+  `labels.size`, `legend.size`, title/subtitle/caption).
+- `title.text` / `subtitle.text` draw an ECharts `title` (align left or
+  center, weight from `title.weight`); `caption.text` is a muted `graphic`
+  text bottom-left; the grid moves to make room. The sheet title in
+  `spec.title` stays in the app header.
+- `background` (`transparent` by default so the card shows through),
+  `border` (drawn by the canvas from `--border`, `__meta.border`),
+  `padding` (shifts every grid side by its difference from the v1 default 16).
+- `axes.x/y/y2`: `gridlines` off removes `splitLine`; `showAxis`, `title`
+  (`null` hides it), `min`/`max`, `log`, `reversed`, `tickFormat` apply to
+  value axes; category axes never draw split lines.
+
+## 7. Maps (D-13, D-17)
+
+Layers are the GeoJSON files of `public/geo/index.json` (`us-states`,
+`world-countries`, `us-counties`, `ercot-zones`; provenance in
+`public/geo/README.md`). `geo-loader.ts` fetches a layer once from
+`import.meta.env.BASE_URL + 'geo/<file>'`, calls `echarts.registerMap` and
+keeps it in a synchronous cache; a builder that finds its layer missing
+returns an empty option with `__meta.geoPending`, the canvas loads the layer
+and rebuilds. `geo.ts` holds the pure join and centroid helpers.
+
+**Geographic role of a field** (`map-common.ts` `geoRoleFor`): the user's
+`typeOverrides[field].geoRole`, else `FieldMeta.geoRole`, else — only while
+inference has not spoken (`geoRole === undefined`) — a whole-word name
+fallback (`zone` → `ercot-zone`, `state` → `us-state`, `county`,
+`country`/`iso_a3`, `lat`/`latitude`, `lon`/`lng`/`longitude`). `null` from
+inference means "none" and is respected. The layer is `spec.geoLayer`, else
+`GEO_LAYER_FOR_ROLE[role]`.
+
+**Join** (`joinRegions`): every `keyProps` property of the layer is tried
+against the distinct labels after `normalizeKey` (trim, lower-case,
+`_`/`-`/spaces collapsed, leading zeros dropped from digit codes); the
+property matching the most labels wins and becomes the map series'
+`nameProperty`. Unmatched labels go to `__meta.unmatched` (toast).
+
+| `marks.mapMark` | Series | Position | Encodings |
+|---|---|---|---|
+| `fill` (default of `map-choropleth`) | `map` | matched regions | color: the Color measure (else the first) through `visualMap`; regions without data keep `--chart-grid` |
+| `label` | `map` with labels | matched regions | region label (+ value when a measure is present); no fill scale |
+| `symbol` (default of `map-symbol`) | `scatter` on `geo` (`effectScatter` when `marks.extra.ripple`) | lat/lon measures, else region centroids (area-weighted over outer rings) | color: Color dimension → one series per label, Color measure → gradient on the point; shape: Shape shelf icons (§8); size: `sizeRange[0]` or the icon size |
+| `bubble` (default when a Size pill is present) | `scatter` on `geo` | as `symbol` | size: sqrt scale of the Size measure (else the color measure) within `sizeRange` |
+| `heat` | `heatmap` on `geo` | as `symbol` | `[lon, lat, value]` with `visualMap` |
+
+Latitude/longitude with no dimension disaggregate the query (one point per
+row, `needs.disaggregate`); with a dimension on Detail the coordinates are
+aggregated per group (use AVG). Rows without a location count in
+`__meta.unplaced`.
+
+## 8. Shape shelf → icons (ICONS.md §7)
+
+`shapes.ts` resolves the Shape pill's labels with `iconsFor(set, labels,
+marks.shapeOverrides)` over `marks.shapeSet` (default `basic`) and gives
+`symbol: 'path://…'` per label. On `scatter`/`bubble` and the symbol map:
+with no Color dimension (or the same field on Color and Shape) there is one
+series per shape label so the legend shows the icon; otherwise the series stay
+by color and the icon is chosen per point. Icons draw at 12 px for
+`smallSafe` sets and 16 px otherwise (never below `sizeRange[0]`); `large`
+rendering is off when icons are in use.
+
+## 9. Seams left for the integrator (T2 report)
+
+- **Percentile bands.** `envelope` reads `QueryResult.bands` in
+  `envelopeLevels(spec)` order (each band's low and high, outer first, then 50)
+  but `ChartNeeds` (`src/lib/core/query-of.ts`) has no way to ask for them:
+  add `bands?: { levels: number[] }`, let `queryOf` emit
+  `plan.bands = { measureKey: measures[0].key, levels }`, and have
+  `needsFor` pass `envelopeLevels(spec)` when `spec.envelope?.mode !==
+  'columns'`. Until then percentile mode fails with a message naming
+  `QueryPlan.bands`; `columns` mode works today.
+- **`stats-shim.ts`.** `fit()` and `summary()` with T1's signatures; swap the
+  two imports in `decorations.ts` to `../data/regression` and
+  `../data/stats` when they land and delete the shim.
+- **Geo role inference.** The name fallback in `map-common.ts` exists only
+  until `FieldMeta.geoRole` is written by inference; delete it then.
+- **Dirty-rect repainting is off.** `ChartCanvas` now inits ECharts with
+  `useDirtyRect: false` (the ECharts default): with it on, the first animated
+  paint of a chart with a `markPoint` label, and of geo scatter symbols after
+  the layer loads, left un-repainted holes (verified in the dev smoke; any
+  later `setOption` repainted them). Hover and animation repaint the full
+  canvas, which the §9 budgets do not measure.

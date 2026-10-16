@@ -1,6 +1,6 @@
 /** Bubble (CHARTS.md #10): scatter with a size M; symbol area follows a square-root scale within `marks.sizeRange`. */
 import type { ChartDef } from '../registry';
-import { svgIcon } from '../option-common';
+import { DECORATION_MODULES, svgIcon } from '../option-common';
 import { buildScatter } from './scatter';
 
 export const bubble: ChartDef = {
@@ -12,6 +12,6 @@ export const bubble: ChartDef = {
   channels: ['color', 'size', 'label', 'detail', 'tooltip'],
   renderer: 'echarts',
   needs: { disaggregate: true },
-  echartsModules: ['ScatterChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'DataZoomInsideComponent', 'CanvasRenderer'],
+  echartsModules: ['ScatterChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'DataZoomInsideComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => buildScatter(ctx, true),
 };

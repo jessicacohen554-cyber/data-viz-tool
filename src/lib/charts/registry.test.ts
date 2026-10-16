@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CHART_TYPE_IDS } from '../core/constants';
+import { CHART_TYPE_IDS, PENDING_CHART_TYPE_IDS } from '../core/constants';
 import { CHART_TYPES, PICKER_GROUPS, chartDef, needsFor, unregisteredIds } from './registry';
 import { makeSpec, dim, measure } from './test-fixtures';
 
 describe('chart registry', () => {
-  it('registers every id in CHART_TYPE_IDS, and nothing else', () => {
+  it('registers every id in CHART_TYPE_IDS, and nothing else; no id is left pending (v2 complete)', () => {
     expect(unregisteredIds()).toEqual([]);
+    expect(PENDING_CHART_TYPE_IDS).toEqual([]);
+    expect(CHART_TYPE_IDS).toHaveLength(39);
     expect(Object.keys(CHART_TYPES).sort()).toEqual([...CHART_TYPE_IDS].sort());
     for (const id of CHART_TYPE_IDS) expect(chartDef(id).id).toBe(id);
   });

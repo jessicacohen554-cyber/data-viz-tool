@@ -4,7 +4,7 @@
  * bins; `barGap: 0`; empty bins are kept zero-height.
  */
 import type { ChartDef } from '../registry';
-import { cartesianBars, dimsOn, svgIcon, themeOf } from '../option-common';
+import { DECORATION_MODULES, cartesianBars, dimsOn, svgIcon, themeOf } from '../option-common';
 
 export const histogram: ChartDef = {
   id: 'histogram',
@@ -17,7 +17,7 @@ export const histogram: ChartDef = {
   },
   channels: ['color', 'label', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => {
     const stack = ctx.spec.shelves.color[0]?.role === 'dimension' ? 'stack' : 'none';
     const option = cartesianBars(ctx, { stack });

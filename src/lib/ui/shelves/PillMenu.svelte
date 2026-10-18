@@ -1,12 +1,90 @@
+<script lang="ts" module>
+  import type { FormatSpec, MarkSettings, Pill, ShelfId, VizSpec } from '../../core/types';
+
+  /**
+   * Quick number-format presets (docs/TABLEAU-SPEC.md §11.3): each merges
+   * into the pill's current format without opening the Format dialog.
+   * `kind` presets replace the kind; `units` / `decimals` presets keep the
+   * kind (promoting `automatic` to `number` so the option takes effect).
+   */
+  export type FormatPreset =
+    | { id: string; label: string; kind: FormatSpec['kind'] }
+    | { id: string; label: string; units: NonNullable<FormatSpec['units']> }
+    | { id: string; label: string; decimals: number };
+
+  export const FORMAT_PRESETS: readonly FormatPreset[] = [
+    { id: 'fmt-automatic', label: 'Automatic', kind: 'automatic' },
+    { id: 'fmt-number', label: 'Number', kind: 'number' },
+    { id: 'fmt-currency', label: 'Currency', kind: 'currency' },
+    { id: 'fmt-percent', label: 'Percent', kind: 'percent' },
+    { id: 'fmt-units-none', label: 'Units: none', units: 'none' },
+    { id: 'fmt-units-k', label: 'Units: K', units: 'K' },
+    { id: 'fmt-units-m', label: 'Units: M', units: 'M' },
+    { id: 'fmt-units-b', label: 'Units: B', units: 'B' },
+    { id: 'fmt-dec-0', label: '0 decimals', decimals: 0 },
+    { id: 'fmt-dec-1', label: '1 decimal', decimals: 1 },
+    { id: 'fmt-dec-2', label: '2 decimals', decimals: 2 },
+  ];
+
+  /** The format after applying `preset` to `current`; undefined = back to the field default. */
+  export function applyFormatPreset(current: FormatSpec | undefined, preset: FormatPreset): FormatSpec | undefined {
+    if ('kind' in preset) {
+      if (preset.kind === 'automatic') return undefined;
+      const next: FormatSpec = { ...(current ?? {}), kind: preset.kind };
+      if (preset.kind === 'currency' && !next.currency) next.currency = 'USD';
+      if (preset.kind === 'percent') delete next.units;
+      return next;
+    }
+    const base: FormatSpec = { ...(current ?? { kind: 'automatic' }) };
+    if (base.kind === 'automatic') base.kind = 'number';
+    if ('units' in preset) base.units = preset.units; else base.decimals = preset.decimals;
+    return base;
+  }
+
+  /** True when the preset matches the pill's current format (for the tick). */
+  export function presetActive(current: FormatSpec | undefined, preset: FormatPreset): boolean {
+    if ('kind' in preset) return (current?.kind ?? 'automatic') === preset.kind;
+    if ('units' in preset) return (current?.units ?? 'none') === preset.units && !!current;
+    return current?.decimals === preset.decimals;
+  }
+
+  /** The measure pills on a value shelf (`rows` / `columns`) that can take an axis: aggregated measures, not bins. */
+  export function axisMeasures(spec: VizSpec, shelf: ShelfId): Pill[] {
+    if (shelf !== 'rows' && shelf !== 'columns') return [];
+    return spec.shelves[shelf].filter((p) => p.role === 'measure' && !p.bin && !p.date);
+  }
+
+  /** Dual axis applies when the pill is one of ≥ 2 axis measures on its shelf (D-19). */
+  export function canDualAxis(spec: VizSpec, pill: Pill, shelf: ShelfId): boolean {
+    const ms = axisMeasures(spec, shelf);
+    return ms.length >= 2 && ms.some((p) => p.id === pill.id);
+  }
+
+  /** True when any value-shelf pill sits on the secondary axis. */
+  export function hasSecondary(spec: VizSpec): boolean {
+    return axisMeasures(spec, 'rows').some((p) => p.axis === 'secondary') || axisMeasures(spec, 'columns').some((p) => p.axis === 'secondary');
+  }
+
+  /** The combo mark for the axis a pill sits on. */
+  export function comboMarkOf(spec: VizSpec, pill: Pill): 'bar' | 'line' | 'area' {
+    const by = spec.marks.markByAxis ?? { primary: 'bar', secondary: 'line' };
+    return pill.axis === 'secondary' ? by.secondary : by.primary;
+  }
+
+  /** Combo marks in menu order. */
+  export const COMBO_MARKS: readonly NonNullable<MarkSettings['markByAxis']>['primary'][] = ['bar', 'line', 'area'];
+</script>
+
 <script lang="ts">
   /**
-   * The pill context menu (docs/TABLEAU-SPEC.md §2–§6): aggregation, date
-   * part/value with ▸ drill, discrete/continuous, sort, bin, move to shelf
-   * (the keyboard alternative to drag), filter and format (opened through
-   * callback props so the dialogs stay in S5), remove. Every change is one
-   * `spec` store call = one undo step.
+   * The pill context menu (docs/TABLEAU-SPEC.md §2–§6, §11): aggregation,
+   * date part/value with ▸ drill, discrete/continuous, sort, bin, move to
+   * shelf (the keyboard alternative to drag), filter and format (opened
+   * through callback props so the dialogs stay in S5), quick number presets
+   * (T4), dual axis / synchronize axis / combo mark (T4, D-19), remove. Every
+   * change is one `spec` store call = one undo step.
    */
-  import type { Aggregation, DateLevel, FieldMeta, Pill, ShelfId, SortSpec } from '../../core/types';
+  import type { Aggregation, DateLevel, FieldMeta, SortSpec } from '../../core/types';
   import { AGGREGATIONS, ALL_SHELVES, DATE_LEVELS, SINGLE_PILL_SHELVES } from '../../core/constants';
   import { newId } from '../../core/spec-defaults';
   import Menu, { type MenuItem, type MenuSection } from '../shared/Menu.svelte';
@@ -125,6 +203,37 @@
     }];
   }
 
+  /** Quick number presets (§11.3): each writes `Pill.format` directly. */
+  function formatPresetSection(): MenuSection[] {
+    const kinds = FORMAT_PRESETS.filter((p) => 'kind' in p);
+    const units = FORMAT_PRESETS.filter((p) => 'units' in p);
+    const decimals = FORMAT_PRESETS.filter((p) => 'decimals' in p);
+    const item = (p: FormatPreset): MenuItem => ({
+      id: p.id,
+      label: p.label,
+      checked: presetActive(pill.format, p),
+      onSelect: () => update((pp) => { const next = applyFormatPreset(pp.format, p); if (next) pp.format = next; else delete pp.format; }),
+    });
+    return [
+      { title: 'Kind', items: kinds.map(item) },
+      { title: 'Units', items: units.map(item) },
+      { title: 'Decimals', items: decimals.map(item) },
+    ];
+  }
+
+  /** Combo chart: the mark drawn for this pill's axis (`marks.markByAxis`). */
+  function comboMarkSection(): MenuSection[] {
+    const side = pill.axis === 'secondary' ? 'secondary' : 'primary';
+    return [{
+      items: COMBO_MARKS.map<MenuItem>((m) => ({
+        id: `combo-${m}`,
+        label: m.charAt(0).toUpperCase() + m.slice(1),
+        checked: comboMarkOf(spec.value, pill) === m,
+        onSelect: () => spec.patch((d) => { d.marks.markByAxis = { ...(d.marks.markByAxis ?? { primary: 'bar', secondary: 'line' }), [side]: m }; }),
+      })),
+    }];
+  }
+
   function moveSection(): MenuSection[] {
     return [{
       items: ALL_SHELVES.filter((s) => s !== shelf).map<MenuItem>((s) => ({
@@ -176,9 +285,26 @@
       tools.push({ id: 'sort', label: 'Sort', icon: 'sort', hint: pill.sort ? pill.sort.by : undefined, children: sortSection() });
     }
     if (shelf === 'filters') tools.push({ id: 'filter', label: 'Edit filter…', icon: 'filter', disabled: !onFilter, onSelect: () => onFilter?.(pill.id) });
+    if (isNumeric && pill.role === 'measure') {
+      tools.push({ id: 'format-presets', label: 'Number format', hint: pill.format?.kind ?? 'auto', children: formatPresetSection() });
+    }
     tools.push({ id: 'format', label: 'Format…', disabled: !onFormat, onSelect: () => onFormat?.(pill.id) });
     tools.push({ id: 'move', label: 'Move to', children: moveSection() });
     out.push({ items: tools });
+
+    // Dual axis (D-19): on a measure pill that shares its value shelf with another measure.
+    if (canDualAxis(spec.value, pill, shelf)) {
+      const axisItems: MenuItem[] = [
+        { id: 'dual-axis', label: 'Dual axis', checked: pill.axis === 'secondary', onSelect: () => update((p) => { if (p.axis === 'secondary') delete p.axis; else p.axis = 'secondary'; }) },
+      ];
+      if (hasSecondary(spec.value)) {
+        axisItems.push({ id: 'sync-axis', label: 'Synchronize axis', checked: spec.value.axes.synchronized, onSelect: () => spec.patch((d) => { d.axes.synchronized = !d.axes.synchronized; }) });
+      }
+      if (spec.value.chartType === 'combo') {
+        axisItems.push({ id: 'combo-mark', label: 'Mark type', hint: comboMarkOf(spec.value, pill), children: comboMarkSection() });
+      }
+      out.push({ items: axisItems });
+    }
 
     out.push({ items: [{ id: 'remove', label: 'Remove', icon: 'close', danger: true, onSelect: () => spec.removePill(pill.id) }] });
     return out;

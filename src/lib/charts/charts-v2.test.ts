@@ -10,7 +10,7 @@ import type { QueryResult, VizSpec } from '../core/types';
 import type { BuildContext } from './registry';
 import { buildOption, tryBuildOption } from './spec-builder';
 import { envelopeLevels } from './types/envelope';
-import { geoRoleFor, mapLayerId } from './map-common';
+import { fitViewToPoints, geoRoleFor, mapLayerId } from './map-common';
 import { clearGeoLayers } from './geo-loader';
 import { date, day, dim, fieldMeta, makeResult, makeSpec, measure, resultDim, resultMeasure, zonesLayer } from './test-fixtures';
 
@@ -548,5 +548,40 @@ describe('latitude / longitude without an area role (T6)', () => {
     expect(mapLayerId(spec, [])).toBeUndefined();
     spec.geoLayer = 'ercot-zones';
     expect(mapLayerId(spec, meta)).toBe('ercot-zones');
+  });
+});
+
+describe('a lone secondary-axis measure (T6)', () => {
+  it('draws on the primary axis with one y axis, even when axes are synchronized', () => {
+    const zone = dim('zone'); const p = measure('price', 'avg', { axis: 'secondary' });
+    const result = makeResult([resultDim(zone.id, ['N', 'S'])], [resultMeasure(p.id, [10, 20])]);
+    const spec = makeSpec('bar', { columns: [zone], rows: [p] }, (s) => { s.axes.synchronized = true; });
+    const o = buildOption(ctx(spec, result));
+    const axes = (Array.isArray(o.yAxis) ? o.yAxis : [o.yAxis]) as Axis[];
+    expect(axes).toHaveLength(1);
+    const s = (o.series as S[])[0]!;
+    expect(s.name).toBe('AVG(price)');
+    expect(s.yAxisIndex ?? 0).toBe(0);
+    expect(axes[0]!.max).toBeUndefined();
+  });
+});
+
+describe('coordinate marks fit the view to the data (T6)', () => {
+  const close = (got: unknown, want: number[][]) => (got as number[][]).forEach((pair, i) => pair.forEach((v, j) => expect(v).toBeCloseTo(want[i]![j]!, 6)));
+  it('sets geo.boundingCoords from the padded lon/lat extent; centroid marks on a region layer do not', () => {
+    close(fitViewToPoints([[-100, -96], [28, 32]]), [[-100.6, 27.4], [-95.4, 32.6]]);
+    // A single point still gets a FIT_MIN_SPAN-degree window.
+    close(fitViewToPoints([[-95.4, -95.4], [29.8, 29.8]]), [[-96.7, 28.5], [-94.1, 31.1]]);
+    const lat = measure('lat', 'none'); const lon = measure('lon', 'none'); const site = dim('site');
+    const result = makeResult([resultDim(site.id, ['a', 'b'])], [resultMeasure(lat.id, [30, 32]), resultMeasure(lon.id, [-100, -96])]);
+    const spec = makeSpec('map-symbol', { columns: [lon], rows: [lat], detail: [site] }, (s) => { s.geoLayer = 'test-zones'; });
+    const o = buildOption(ctx(spec, result, [{ ...fieldMeta('lat', 'number'), geoRole: 'latitude' }, { ...fieldMeta('lon', 'number'), geoRole: 'longitude' }]));
+    close((o.geo as { boundingCoords: unknown }).boundingCoords, [[-100.6, 29.7], [-95.4, 32.3]]);
+    const zone = dim('zone'); const p = measure('price', 'avg');
+    const byRegion = buildOption(ctx(makeSpec('map-symbol', { columns: [zone], color: [p] }, (s) => { s.geoLayer = 'test-zones'; }), makeResult([resultDim(zone.id, ['North', 'South'])], [resultMeasure(p.id, [1, 2])])));
+    expect((byRegion.geo as { boundingCoords?: unknown }).boundingCoords).toBeUndefined();
+    // With coordinates, a Detail dimension is a label, not a region to join: nothing is reported unmatched.
+    expect((o.__meta as { unmatched: string[]; points: number }).unmatched).toEqual([]);
+    expect((o.__meta as { points: number }).points).toBe(2);
   });
 });

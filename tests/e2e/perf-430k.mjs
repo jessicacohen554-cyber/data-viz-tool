@@ -10,8 +10,10 @@
  *     Lighthouse is not installed in the shard container);
  *   - open the 2019–2025 hourly file from the picker: wall time from the card
  *     click to the picker closing (download + parse + build in the worker);
- *   - pill drop → chart painted: `zone` on Columns, `price_usd_mwh` on Rows;
- *   - 3-dim group-by: add YEAR(timestamp) and weekday (7 × 7 × 7 = 343 groups),
+ *   - pill drop → chart painted: `weekday` on Columns, `price_usd_mwh` on Rows
+ *     (a bar; `zone` carries a geo role since v2, so it would open as a map and
+ *     time the layer fetch instead of the re-render);
+ *   - 3-dim group-by: add YEAR(timestamp) and zone (7 × 7 × 7 = 343 groups),
  *     read the worker's `elapsedMs` from the footer and the wall time to the repaint.
  *
  * Runs desktop (1280×800) and phone (390×844, touch, 4× CPU throttle to stand
@@ -164,24 +166,24 @@ async function run(browser, base, viewport) {
   out.loadMs = Date.now() - t0;
   out.rowsLoaded = (await page.locator('.pane__stat').first().textContent().catch(() => '')).trim();
 
-  // Drop zone → Columns, price → Rows (desktop: pointer drag; phone: tap field → tap shelf through the sheets).
+  // Drop weekday → Columns, price → Rows (desktop: pointer drag; phone: tap field → tap shelf through the sheets).
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   const t1 = Date.now();
-  await place(page, phone, 'zone', 'columns');
+  await place(page, phone, 'weekday', 'columns');
   const dropped = await place(page, phone, 'price_usd_mwh', 'rows');
   await waitForRepaint(page, '');
   out.twoDropsWallMs = Date.now() - t1;
   out.secondDropToBarMs = Date.now() - dropped;
   out.bar = await footer(page);
 
-  // 3-dim group-by: zone × YEAR(timestamp) × weekday on Columns (343 groups), one more drop each.
+  // 3-dim group-by: weekday × YEAR(timestamp) × zone on Columns (343 groups), one more drop each.
   const dropped2 = await place(page, phone, 'timestamp', 'columns');
   await waitForRepaint(page, out.bar.groups);
   out.thirdPillDropToRepaintMs = Date.now() - dropped2;
   const twoDim = await footer(page);
-  const dropped3 = await place(page, phone, 'weekday', 'columns');
+  const dropped3 = await place(page, phone, 'zone', 'columns');
   await waitForRepaint(page, twoDim.groups);
   out.fourthPillDropToRepaintMs = Date.now() - dropped3;
   out.twoDim = twoDim;

@@ -41,7 +41,7 @@ you verified; a wrong banner is worse than none.
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | ACTIVE — skeleton until S6 | Module map, data flow, worker protocol, state, mobile layout, §9 performance budgets |
 | [`VIZSPEC.md`](VIZSPEC.md) | ACTIVE | The contract narrated: every `VizSpec` field, one JSON example per chart type, `queryOf` and the URL codec |
 | [`TABLEAU-SPEC.md`](TABLEAU-SPEC.md) | ACTIVE | Tableau semantics replicated: types and inference, roles, continuity, aggregations, date hierarchy, sort, filters, the number/date format dialog, Show Me; documented deviations |
-| [`CHARTS.md`](CHARTS.md) | ACTIVE | The 33 chart types: ECharts series, minimum shelves, channels, transforms, edge cases; Show Me priority |
+| [`CHARTS.md`](CHARTS.md) | ACTIVE | The 39 chart types: ECharts series, minimum shelves, channels, transforms, edge cases; Show Me priority; dual axis, decorations, maps, icons |
 | [`PALETTES.md`](PALETTES.md) | ACTIVE | The palette registry: every id, construction, validation status, Observatory name-matching, how the Color shelf resolves |
 | [`DECISIONS.md`](DECISIONS.md) | ACTIVE | Owner rulings D-1…D-12 verbatim; out-of-scope ledger |
 | [`records/README.md`](records/README.md) | ACTIVE | Record types and naming |

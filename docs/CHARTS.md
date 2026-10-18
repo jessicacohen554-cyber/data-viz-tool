@@ -85,8 +85,8 @@ Comparison → Multivariate → Flow → Rank / change → Finance → Maps → 
 `suggest()` runs after a drop when the user has not pinned a chart type:
 
 1. `map-choropleth` — if a D carries an area geo role assigned by inference
-   or the user (`FieldMeta.geoRole` / `typeOverrides`; the name fallback of
-   §7 never suggests) and ≥ 1 M
+   or the user (`FieldMeta.geoRole` / `typeOverrides`; a column name alone
+   never implies a role) and ≥ 1 M
 2. `bar` — if ≥ 1 D and ≥ 1 M
 3. `line` — if a T (or continuous C) is on Columns or Rows and ≥ 1 M
 4. `scatter` — if ≥ 2 M and 0 D
@@ -95,8 +95,8 @@ Comparison → Multivariate → Flow → Rank / change → Finance → Maps → 
 Eligibility rules the v2 types add (`Requirement.exact`): `envelope` needs a
 date or continuous field on Columns plus one measure, or low and high
 measures on Rows in `columns` mode; the maps need a dimension with an area geo
-role (role, override, name fallback or an explicit `spec.geoLayer`), or
-latitude + longitude measures.
+role (inferred role, override, or any dimension once `spec.geoLayer` is set
+explicitly), or latitude + longitude measures.
 
 Within the picker, eligible types are ordered by the group order above; the
 suggested type is marked "Recommended".
@@ -211,12 +211,13 @@ returns an empty option with `__meta.geoPending`, the canvas loads the layer
 and rebuilds. `geo.ts` holds the pure join and centroid helpers.
 
 **Geographic role of a field** (`map-common.ts` `geoRoleFor`): the user's
-`typeOverrides[field].geoRole`, else `FieldMeta.geoRole`, else — only while
-inference has not spoken (`geoRole === undefined`) — a whole-word name
-fallback (`zone` → `ercot-zone`, `state` → `us-state`, `county`,
-`country`/`iso_a3`, `lat`/`latitude`, `lon`/`lng`/`longitude`). `null` from
-inference means "none" and is respected. The layer is `spec.geoLayer`, else
-`GEO_LAYER_FOR_ROLE[role]`.
+`typeOverrides[field].geoRole`, else `FieldMeta.geoRole` as the worker
+inferred it (TABLEAU-SPEC §1.1: header hints plus ≥ 80 % of the sample
+matching a name table or coordinate range), else none; a column name alone
+never implies a role. The layer is `spec.geoLayer`, else
+`GEO_LAYER_FOR_ROLE[role]`, else `DEFAULT_LATLON_LAYER` (`us-states`) for
+latitude + longitude without an area role; coordinate marks fit the geo view
+to their lon/lat extent (`fitViewToPoints`).
 
 **Join** (`joinRegions`): every `keyProps` property of the layer is tried
 against the distinct labels after `normalizeKey` (trim, lower-case,
@@ -248,21 +249,32 @@ by color and the icon is chosen per point. Icons draw at 12 px for
 `smallSafe` sets and 16 px otherwise (never below `sizeRange[0]`); `large`
 rendering is off when icons are in use.
 
-## 9. Seams left for the integrator (T2 report)
+## 9. Integration notes (T2 seams, resolved by T6)
 
-- **Percentile bands.** `envelope` reads `QueryResult.bands` in
-  `envelopeLevels(spec)` order (each band's low and high, outer first, then 50)
-  but `ChartNeeds` (`src/lib/core/query-of.ts`) has no way to ask for them:
-  add `bands?: { levels: number[] }`, let `queryOf` emit
-  `plan.bands = { measureKey: measures[0].key, levels }`, and have
-  `needsFor` pass `envelopeLevels(spec)` when `spec.envelope?.mode !==
-  'columns'`. Until then percentile mode fails with a message naming
-  `QueryPlan.bands`; `columns` mode works today.
-- **`stats-shim.ts`.** `fit()` and `summary()` with T1's signatures; swap the
-  two imports in `decorations.ts` to `../data/regression` and
-  `../data/stats` when they land and delete the shim.
-- **Geo role inference.** The name fallback in `map-common.ts` exists only
-  until `FieldMeta.geoRole` is written by inference; delete it then.
+- **Percentile bands.** `needsFor(spec)` asks for
+  `bands: { levels: envelopeLevels(spec), measureKey }` whenever the chart is
+  `envelope` in `percentile` mode; `queryOf` emits `plan.bands` for that
+  measure (the first measure when the key is not a plan measure) and the key
+  includes the levels, so switching P25–P75 on or off is a new query. The
+  builder reads `result.bands` in `envelopeLevels(spec)` order (each band's
+  low and high, outer first, then 50).
+- **Statistics.** `decorations.ts` uses `lib/data/regression` (`fit`) and
+  `lib/data/stats` (`summary`), the worker's own code; T2's `stats-shim.ts`
+  is deleted. A degenerate fit (fewer than two points, constant x, singular
+  system) has NaN coefficients and is skipped with a note.
+- **Geo roles.** `geoRoleFor(spec, meta, field)` is override → inferred →
+  `null`; the name fallback is gone, so a column called `zone` drives a map
+  only when the worker inferred the role (TABLEAU-SPEC §1.1) or the user set
+  it. `arrangeFor(draft, target, meta)` takes `meta` for the same reason.
+- **Coordinates without an area role** draw on `DEFAULT_LATLON_LAYER`
+  (`us-states`) until the Marks card picks another layer, and the geo view is
+  fitted to the points' lon/lat extent (`fitViewToPoints`, 15 % padding, ≥ 2°)
+  so a continent-wide layer never shrinks the data to a thumbnail; with
+  coordinates present a Detail dimension labels the marks instead of being
+  joined to regions.
+- **A lone secondary-axis measure** (the primary pill was removed) draws on
+  the primary axis with one value axis; `axes.synchronized` then has nothing
+  to copy.
 - **Dirty-rect repainting is off.** `ChartCanvas` now inits ECharts with
   `useDirtyRect: false` (the ECharts default): with it on, the first animated
   paint of a chart with a `markPoint` label, and of geo scatter symbols after

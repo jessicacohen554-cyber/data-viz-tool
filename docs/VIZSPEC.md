@@ -115,7 +115,7 @@ filters / palette / marks / axes / chart type ───┘        │           
 | `TrendLine` | linear/log/exp/poly fit, per series, with equation |
 | `Annotation[]` | pinned text notes |
 
-Chart ids added to the union: `area-stacked`, `area-100`, `combo`, `envelope`, `map-choropleth`, `map-symbol` (in `PENDING_CHART_TYPE_IDS` until the charts shard registers them).
+Chart ids added to the union: `area-stacked`, `area-100`, `combo`, `envelope`, `map-choropleth`, `map-symbol` — all registered (`PENDING_CHART_TYPE_IDS` is empty). `ChartNeeds.bands` (T6) lets `needsFor` ask `queryOf` for `QueryPlan.bands` when the chart is an envelope in percentile mode; the levels are part of `queryKey`.
 
 ## Versioning
 

@@ -54,12 +54,12 @@ export function geoPills(spec: VizSpec, meta: FieldMeta[]): GeoPills {
   const roleOf = (p: Pill) => geoRoleFor(spec, meta, p.field);
   const allMeasures = [...c.measures, ...spec.shelves.detail.filter(isMeasurePill), ...spec.shelves.tooltip.filter(isMeasurePill)];
   let area = c.dims.find((d) => { const r = roleOf(d); return r !== null && AREA_ROLES.includes(r); });
-  if (!area && spec.geoLayer) area = c.dims[0];
-  return {
-    area,
-    lat: allMeasures.find((m) => roleOf(m) === 'latitude'),
-    lon: allMeasures.find((m) => roleOf(m) === 'longitude'),
-  };
+  const lat = allMeasures.find((m) => roleOf(m) === 'latitude');
+  const lon = allMeasures.find((m) => roleOf(m) === 'longitude');
+  // An explicit layer lets a role-less dimension name its regions, unless coordinates already place the marks
+  // (then a Detail pill such as a city name is a label, not a region to join).
+  if (!area && spec.geoLayer && !(lat && lon)) area = c.dims[0];
+  return { area, lat, lon };
 }
 
 /** Base layer drawn under latitude / longitude marks when no area role and no `spec.geoLayer` choose one (T6; the Marks card overrides it). */
@@ -89,6 +89,29 @@ function valueMeasures(spec: VizSpec, g: GeoPills): Pill[] {
 
 /** One drawn location. */
 interface MapPoint { pos: Position; label: string; value: number | null; size: number | null; color: string; shape: string }
+
+/** Padding around the coordinate extent, as a share of its span, and the smallest span (degrees) a view is fitted to. */
+export const FIT_PADDING = 0.15;
+export const FIT_MIN_SPAN = 2;
+
+/**
+ * ECharts `geo.boundingCoords` for latitude / longitude marks: the points'
+ * lon/lat extent padded by `FIT_PADDING` and at least `FIT_MIN_SPAN` wide, so
+ * the base layer is cropped to where the data is (T6; the US states layer
+ * spans the antimeridian through Alaska and would otherwise draw Texas 100 px
+ * wide). Roam still pans and zooms from there.
+ */
+export function fitViewToPoints(extent: readonly [readonly [number, number], readonly [number, number]]): [[number, number], [number, number]] {
+  const [[x0, x1], [y0, y1]] = extent;
+  const pad = (lo: number, hi: number): [number, number] => {
+    const span = Math.max(hi - lo, FIT_MIN_SPAN);
+    const mid = (lo + hi) / 2;
+    return [mid - span / 2 - span * FIT_PADDING, mid + span / 2 + span * FIT_PADDING];
+  };
+  const [lx, hx] = pad(x0, x1);
+  const [ly, hy] = pad(y0, y1);
+  return [[Math.max(-180, lx), Math.max(-90, ly)], [Math.min(180, hx), Math.min(90, hy)]];
+}
 
 /** Build a map option. `defaultMark` is the chart type's own default when `marks.mapMark` is unset. */
 export function buildMap(ctx: BuildContext, defaultMark: MapMark): OptionObject {
@@ -151,6 +174,8 @@ export function buildMap(ctx: BuildContext, defaultMark: MapMark): OptionObject 
   };
   const unmatched = join?.unmatched ?? [];
   const metaBase: OptionObject = { geoLayer: layerId, mark, unmatched, matched: join ? join.byLabel.size : 0, nameProperty: join?.prop ?? null };
+  /** Lon / lat extent of coordinate marks; the view is fitted to it (`fitViewToPoints`) so a continent-wide layer never shrinks the data to a thumbnail. */
+  const extent: [[number, number], [number, number]] = [[Infinity, -Infinity], [Infinity, -Infinity]];
 
   if (fill) {
     if (!areaAt || !join) throw new Error(`${spec.chartType}: fill marks need a region field (zone, state, county, country); use symbol marks for latitude/longitude`);
@@ -201,6 +226,7 @@ export function buildMap(ctx: BuildContext, defaultMark: MapMark): OptionObject 
   for (let i = 0; i < n; i++) {
     const { pos, label } = positionOf(i);
     if (!pos) { unplaced++; continue; }
+    if (latM && lonM) { for (const k of [0, 1] as const) { if (pos[k] < extent[k][0]) extent[k][0] = pos[k]; if (pos[k] > extent[k][1]) extent[k][1] = pos[k]; } }
     const shape = shapeAt ? String(shapeAt(i)) : '';
     if (shapeAt && !shapeLabels.includes(shape)) shapeLabels.push(shape);
     rows.push({
@@ -208,6 +234,7 @@ export function buildMap(ctx: BuildContext, defaultMark: MapMark): OptionObject 
       color: colorAt ? String(colorAt(i)) : (colorM ? pillLabel(colorM) : 'Locations'), shape,
     });
   }
+  if (latM && lonM && rows.length > 0) geoBase.boundingCoords = fitViewToPoints(extent);
   const shapes = shapeAt ? shapeMap(ctx, shapeLabels) : undefined;
   const sizeSource = sm ? rows.map((r) => r.size) : rows.map((r) => r.value);
   const scale = sizeScale(sizeSource, spec.marks.sizeRange);

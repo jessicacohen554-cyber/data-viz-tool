@@ -694,7 +694,12 @@ export function cartesianModel(ctx: BuildContext, opts: ModelOptions = {}): Cart
   const colorPill = spec.shelves.color[0] && isDimPill(spec.shelves.color[0]) && spec.shelves.color[0].id !== xPill?.id ? spec.shelves.color[0] : undefined;
   const xDim = dimOf(ctx, xPill);
   const n = ctx.result.groups;
-  const axisFor = (p: Pill, i: number): 'primary' | 'secondary' => p.axis ? axisOf(p) : (opts.secondaryFrom !== undefined && i >= opts.secondaryFrom ? 'secondary' : 'primary');
+  const requested = (p: Pill, i: number): 'primary' | 'secondary' => p.axis ? axisOf(p) : (opts.secondaryFrom !== undefined && i >= opts.secondaryFrom ? 'secondary' : 'primary');
+  // A dual axis needs a primary measure: when every remaining measure asks for the right axis (the primary pill was
+  // removed, or the only measure still carries `axis: 'secondary'`), everything draws on the primary axis (D-19).
+  const resolved = measures.map(requested);
+  const anyPrimary = resolved.includes('primary');
+  const axisFor = (_p: Pill, i: number): 'primary' | 'secondary' => (anyPrimary ? resolved[i]! : 'primary');
   const pivotOf = (m: Pill, sDim: ResultDim | undefined): Pivot => {
     const rm = requireMeasure(ctx, m, 'the measure');
     const p = xDim

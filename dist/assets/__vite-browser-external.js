@@ -1,1 +1,1 @@
-import{t as e}from"./__vite-browser-external2.js";export default e();
+import{t as e}from"./rolldown-runtime.js";var t=e(((e,t)=>{t.exports={}}));export default t();

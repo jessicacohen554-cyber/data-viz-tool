@@ -1,1 +1,0 @@
-throw Error(`Could not resolve "@vitejs/devtools/config" imported by "vite". Is it installed?`);

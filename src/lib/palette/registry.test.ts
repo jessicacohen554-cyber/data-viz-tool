@@ -9,13 +9,18 @@ import { steppedForm } from './sequential';
 import { divergingArms } from './diverging';
 import { SURFACES, isMonotoneLightness } from './validate';
 
-/** Every id PALETTES.md lists, by kind. */
+/** Every id PALETTES.md lists, by kind (§1–§2, then the §6 families). */
 const DOC_IDS = {
   categorical: ['observatory', 'observatory-iso', 'okabe-ito', 'classic-10', 'pairs-amber-indigo', 'pairs-sky-orange',
-    'pairs-green-magenta', 'pairs-teal-brown', 'pairs-navy-gold', 'pairs-purple-lime', 'pastel', 'bold', 'grayscale'],
+    'pairs-green-magenta', 'pairs-teal-brown', 'pairs-navy-gold', 'pairs-purple-lime', 'pastel', 'bold', 'grayscale',
+    'neon', 'vibrant', 'muted', 'earthy', 'ocean', 'sunset', 'forest', 'berry', 'candy', 'retro', 'corporate', 'warm', 'cool',
+    'high-contrast', 'monochrome-navy', 'monochrome-teal'],
   sequential: ['seq-sky', 'seq-indigo', 'seq-green', 'seq-amber', 'seq-orange', 'seq-navy', 'seq-gray', 'seq-teal', 'seq-rose',
-    'viridis', 'magma', 'cividis', 'seq-observatory-heat'],
-  diverging: ['div-cool-warm', 'div-observatory', 'div-teal-brown', 'div-green-purple', 'div-sky-amber', 'div-navy-gold'],
+    'viridis', 'magma', 'cividis', 'seq-observatory-heat',
+    'seq-earth', 'seq-forest', 'seq-berry', 'seq-retro', 'seq-corporate', 'seq-muted', 'seq-neon-pink', 'seq-neon-green', 'seq-neon-blue',
+    'seq-ocean', 'seq-sunset', 'seq-candy', 'seq-warm', 'seq-cool'],
+  diverging: ['div-cool-warm', 'div-observatory', 'div-teal-brown', 'div-green-purple', 'div-sky-amber', 'div-navy-gold',
+    'div-earth-ocean', 'div-sunset', 'div-berry-forest', 'div-neon', 'div-muted'],
 };
 
 describe('registry contents', () => {
@@ -25,7 +30,14 @@ describe('registry contents', () => {
     for (const kind of ['categorical', 'sequential', 'diverging'] as const) {
       expect(palettesOfKind(kind).map((p) => p.id).sort()).toEqual([...DOC_IDS[kind]].sort());
     }
-    expect(ids).toHaveLength(32);
+    expect(ids).toHaveLength(67);
+  });
+  it('every palette carries its family as `family` and first tag', () => {
+    for (const p of PALETTES) {
+      expect(p.family, p.id).not.toBe('other');
+      expect(p.tags[0], p.id).toBe(p.family);
+      expect(p.tags.filter((t) => t === 'labels-required').length, p.id).toBe(p.labelsRequired ? 1 : 0);
+    }
   });
   it('getPalette finds by id and returns undefined otherwise', () => {
     expect(getPalette('seq-sky')?.kind).toBe('sequential');

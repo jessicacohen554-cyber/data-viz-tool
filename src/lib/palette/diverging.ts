@@ -34,6 +34,20 @@ export const DIVERGING_SPECS: ReadonlyArray<{
   { id: 'div-navy-gold', label: 'Navy–Gold', cool: 265, coolAnchor: '#1A2744', coolCmax: 0.08, warm: 86, warmAnchor: '#EAB308', warmCmax: 0.14 },
 ];
 
+/**
+ * Family diverging pairs (§6.3), same construction. The ramp always runs
+ * cool arm → mid → warm arm (negative → positive) whatever the id's word order.
+ */
+export const FAMILY_DIVERGING_SPECS: ReadonlyArray<{
+  id: string; label: string; cool: number; coolCmax: number; warm: number; warmCmax: number; family: string;
+}> = [
+  { id: 'div-earth-ocean', label: 'Earth–Ocean', cool: 200, coolCmax: 0.12, warm: 55, warmCmax: 0.10, family: 'earthy' },
+  { id: 'div-sunset', label: 'Sunset', cool: 300, coolCmax: 0.14, warm: 85, warmCmax: 0.14, family: 'sunset' },
+  { id: 'div-berry-forest', label: 'Berry–Forest', cool: 145, coolCmax: 0.12, warm: 345, warmCmax: 0.16, family: 'berry' },
+  { id: 'div-neon', label: 'Neon', cool: 140, coolCmax: 0.22, warm: 350, warmCmax: 0.25, family: 'neon' },
+  { id: 'div-muted', label: 'Muted', cool: 240, coolCmax: 0.07, warm: 25, warmCmax: 0.07, family: 'muted' },
+];
+
 /** The fixed Observatory delta ramp (`bc-pages.css .delta-ramp`, white midpoint). */
 export const DIV_OBSERVATORY: readonly string[] = ['#2166ac', '#86a9d4', '#ffffff', '#f0b27a', '#e67e22'];
 
@@ -44,6 +58,10 @@ export const DIVERGING_DEFS: readonly RampDef[] = [
     hue: `${s.cool}/${s.warm}`, tags: ['temperature'], multiHue: true, exempt: false,
   })),
   { id: 'div-observatory', label: 'Observatory', colors: [...DIV_OBSERVATORY], hue: 'blue/orange', tags: ['fixed', 'white-mid', 'needs-cell-border'], multiHue: true, exempt: false },
+  ...FAMILY_DIVERGING_SPECS.map((s): RampDef => ({
+    id: s.id, label: s.label, colors: makeDivergingRamp(s.cool, s.coolCmax, s.warm, s.warmCmax),
+    hue: `${s.cool}/${s.warm}`, tags: ['temperature', 'generated'], multiHue: true, exempt: false,
+  })),
 ];
 
 /** Splits a diverging ramp into its two arms (each including the midpoint), light-first. */

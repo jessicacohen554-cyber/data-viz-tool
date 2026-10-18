@@ -18,7 +18,9 @@
  *   node scripts/validate_palette.js "#F59E0B,#22C55E,#0EA5E9" --mode light
  *   node scripts/validate_palette.js "<hex,...>" --surface "#FFFFFF" --pairs all
  *   node scripts/validate_palette.js "<hex,...>" --ordinal
- * Exit 0 unless a check hard-FAILs (1); 2 on bad input.
+ *   node scripts/validate_palette.js --all      # the registry's recorded validation as markdown (PALETTES.md §7)
+ * Exit 0 unless a check hard-FAILs (1); 2 on bad input. `--all` exits 1 when
+ * a set without `labelsRequired` fails a separation gate (the §5 CI rule).
  */
 
 // -- thresholds ----------------------------------------------------------------
@@ -213,8 +215,38 @@ function printReport({ report, ok }, { mode, surface, ordinal, n }) {
       : '  (CVD in the 6–8 floor band is legal ONLY with secondary encoding: direct labels, gaps, or texture)\n'));
 }
 
-if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('validate_palette.js')) {
+/**
+ * `--all`: loads the TypeScript registry through Vite's module runner (the
+ * project's own dev dependency; nothing is added) and prints
+ * `renderValidationReport` — the block PALETTES.md §7 carries verbatim.
+ * Returns the process exit code.
+ */
+async function printAll() {
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, resolve } = await import('node:path');
+  const { runnerImport } = await import('vite');
+  // The runner re-evaluates this file (validate.ts imports it); the flag keeps that copy out of the CLI block.
+  process.env[ALL_GUARD] = '1';
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const opts = { root, configFile: resolve(root, 'vite.config.ts'), logLevel: 'silent' };
+  const { module: registry } = await runnerImport('/src/lib/palette/registry.ts', opts);
+  const { module: report } = await runnerImport('/src/lib/palette/report.ts', opts);
+  console.log(report.renderValidationReport(registry.PALETTES, registry.PALETTE_FAMILIES));
+  const silent = registry.PALETTES.filter((p) => p.kind === 'categorical' && !p.labelsRequired
+    && !(p.validation.categorical.cvdPass && p.validation.categorical.normalPass));
+  if (silent.length) console.error(`§5 CI rule violated (fails separation without labels-required): ${silent.map((p) => p.id).join(', ')}`);
+  return silent.length ? 1 : 0;
+}
+
+/** Env flag set by `--all` so the copy of this file the module runner loads skips the CLI block. */
+const ALL_GUARD = 'VALIDATE_PALETTE_ALL_RUNNING';
+
+if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('validate_palette.js') && !process.env[ALL_GUARD]) {
   const args = process.argv.slice(2);
+  if (args.includes('--all')) {
+    if (args.length !== 1) { console.error('--all takes no other arguments'); process.exit(2); }
+    process.exit(await printAll());
+  }
   const VALUE_FLAGS = new Set(['--mode', '--surface', '--pairs']);
   const CHOICES = { mode: ['light', 'dark'], pairs: ['adjacent', 'all'] };
   const opts = {}; let positional = null;

@@ -43,7 +43,10 @@ describe('diverging ramps (§2.3)', () => {
     expect(def.colors[2]).toBe('#ffffff');
     expect(def.tags).toContain('needs-cell-border');
   });
-  it('lists the six ids in §2.3 order', () => {
-    expect(DIVERGING_DEFS.map((d) => d.id)).toEqual(['div-cool-warm', 'div-teal-brown', 'div-green-purple', 'div-sky-amber', 'div-navy-gold', 'div-observatory']);
+  it('lists the six §2.3 ids, then the five §6.3 family pairs', () => {
+    expect(DIVERGING_DEFS.map((d) => d.id)).toEqual([
+      'div-cool-warm', 'div-teal-brown', 'div-green-purple', 'div-sky-amber', 'div-navy-gold', 'div-observatory',
+      'div-earth-ocean', 'div-sunset', 'div-berry-forest', 'div-neon', 'div-muted',
+    ]);
   });
 });

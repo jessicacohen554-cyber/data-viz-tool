@@ -6,12 +6,19 @@ import {
 import { hexToOklch } from './sequential';
 
 describe('categorical sets (§1)', () => {
-  it('lists the thirteen ids in picker order', () => {
+  it('lists the thirteen §1 ids in picker order, then the §6 family sets', () => {
     expect(CATEGORICAL_DEFS.map((d) => d.id)).toEqual([
       'observatory', 'observatory-iso', 'okabe-ito', 'classic-10',
       'pairs-amber-indigo', 'pairs-sky-orange', 'pairs-green-magenta', 'pairs-teal-brown', 'pairs-navy-gold', 'pairs-purple-lime',
       'pastel', 'bold', 'grayscale',
+      'neon', 'vibrant', 'muted', 'earthy', 'ocean', 'sunset', 'forest', 'berry', 'candy', 'retro', 'corporate', 'warm', 'cool', 'high-contrast',
+      'monochrome-navy', 'monochrome-teal',
     ]);
+  });
+  it('pastel is the band wheel at OKLCH L 0.85', () => {
+    const pastel = CATEGORICAL_DEFS.find((d) => d.id === 'pastel')!.colors;
+    expect(pastel).toHaveLength(10);
+    for (const hex of pastel) expect(hexToOklch(hex)[0]).toBeCloseTo(0.85, 1);
   });
   it('observatory holds the twelve entity colors in slot order', () => {
     expect(OBSERVATORY_COLORS).toEqual(['#F59E0B', '#22C55E', '#0EA5E9', '#6366F1', '#6B7280', '#374151', '#E67E22', '#26A69A', '#10B981', '#92400E', '#D97706', '#009688']);

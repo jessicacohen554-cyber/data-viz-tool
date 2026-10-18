@@ -68,10 +68,12 @@ describe('single-hue ramps (§2.1)', () => {
     expect(steppedForm(ramp)).toEqual(ramp.slice(2));
     expect(steppedForm(['#000000', '#FFFFFF'])).toEqual(['#000000', '#FFFFFF']);
   });
-  it('definitions list nine generated then four fixed ramps', () => {
+  it('definitions list nine generated, four fixed, then the fourteen §6 family ramps', () => {
     expect(SEQUENTIAL_DEFS.map((d) => d.id)).toEqual([
       'seq-sky', 'seq-indigo', 'seq-green', 'seq-amber', 'seq-orange', 'seq-navy', 'seq-gray', 'seq-teal', 'seq-rose',
       'viridis', 'magma', 'cividis', 'seq-observatory-heat',
+      'seq-earth', 'seq-forest', 'seq-berry', 'seq-retro', 'seq-corporate', 'seq-muted', 'seq-neon-pink', 'seq-neon-green', 'seq-neon-blue',
+      'seq-ocean', 'seq-sunset', 'seq-candy', 'seq-warm', 'seq-cool',
     ]);
     expect(SEQUENTIAL_DEFS.find((d) => d.id === 'seq-observatory-heat')?.exempt).toBe(true);
     expect(SEQUENTIAL_DEFS.find((d) => d.id === 'viridis')?.colors).toEqual(['#440154', '#443983', '#31688E', '#21918C', '#35B779', '#90D743', '#FDE725']);

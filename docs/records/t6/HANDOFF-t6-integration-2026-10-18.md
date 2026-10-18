@@ -4,7 +4,7 @@
 
 **For:** the T6 integration shard. **From:** the parent session, 2026-10-18.
 
-State: contract v2 on `main`; T1 (engine v2), T2 (charts v2), T5 (geo & mark UI) merged; T3 (palette families) and T4 (formatting UI) merge when they land (their seams are appended below by the parent). `npm run check` 0 errors, `npm test` 788/788 after T1+T2. Deploy ordering guard added to `deploy-pages.yml` (GitHub's branch-source Pages build was overwriting the Actions deploy); the durable fix is the owner switching Settings → Pages → Source to "GitHub Actions".
+State: contract v2 on `main`; T1 (engine v2), T2 (charts v2), T5 (geo & mark UI) merged; T3 (palette families, 67 palettes in 20 families) and T4 (formatting UI) merged too. `npm run check` 0 errors, `npm test` 887/887, `npm run build` 1.24 MB JS (412 KB gzip). Deploy ordering guard added to `deploy-pages.yml` (GitHub's branch-source Pages build was overwriting the Actions deploy); the durable fix is the owner switching Settings → Pages → Source to "GitHub Actions".
 
 Parent-level contract fixes T6 should make (small, in `src/lib/core` and `src/lib/data/protocol.ts`, allowed for T6): add `bands` to `transferablesOf` in `protocol.ts`; add `geoRole?: GeoRole | null` to `LoadRequest.typeOverrides`; add `bands?: { levels: number[] }` to `ChartNeeds` in `query-of.ts` and emit `plan.bands` from `queryOf` when present; wire `needsFor(spec)` (T2) to pass envelope levels.
 
@@ -46,11 +46,31 @@ Seams**
 
 **Left undone** nothing in scope. `App.svelte` wiring (`onChangeGeoRole={dataset.setGeoRole}`) is T6's.", "type":"text
 
-## T3 palette families v2 — seams
-(appended by the parent when T3 lands)
+## T3 palette families v2 — seams (verbatim)
+Seams**:
+1. `--all` needs the TypeScript registry from a plain `.js`; used Vite's `runnerImport` (existing dev dep, no new dependency). The runner re-evaluates the script itself, so an env guard (`VALIDATE_PALETTE_ALL_RUNNING`) keeps that copy out of the CLI block.
+2. `validate_palette.d.ts` is not in OWNS, so the table renderer lives in `report.ts` (TS) rather than the `.js`; the CLI loads it through the runner.
+3. Themed-set swatch order was chosen by an exhaustive permutation search in a scratch script and stored as literals; it is not recomputed at load (documented in Â§6).
+4. Pre-existing finding, not fixed: `bold` has a 0.0 ÎE adjacent pair (two Observatory blues at L 0.55); it already carries `labels-required`. Noted in Â§5.
+5. `pastel` colors changed (OKLCH re-derivation per the brief); saved views that reference it will repaint to the new hues.
+6. Family tag is each palette's first tag; `PaletteDialog` still groups by kind and does not yet read `PALETTE_FAMILIES` (UI is outside OWNS).
 
-## T4 formatting UI v2 — seams
-(appended by the parent when T4 lands)
+**Left undone**: `python -m pytest tests/py` could not run (pytest not installed in this container); no Python was touched.", "type":"text
+
+## T4 formatting UI v2 — seams (verbatim)
+Seams**
+1. **Combo mark segmented control is not in MarksCard** (not in OWNS; newer main shows another shard editing it). Delivered instead in AxisDialog (y/y2 on `combo`) and PillMenu â¸ Mark type. T6 may move or mirror it.
+2. **`fonts.ts` loader absent** at this SHA: FontPicker injects one Google Fonts `<link>` itself (`ensureFontsLoaded`, deduped by attribute). Replace with T2's loader when it lands.
+3. **Mount helper duplicated**: `dialogs/mount.test.ts` mirrors T5's `fields/svelte-mount.test.ts` on newer main. T6 should keep one.
+4. **`untrack` from `svelte` is a no-op under the jsdom harness** (bare `svelte` resolves to the server build). AnnotationEditor was restructured to need no untrack; any component relying on it will misbehave only in tests.
+5. **Tick-format controls duplicate FormatDialog's** number controls (its markup is not importable). Extracting a shared `FormatFields.svelte` is an S5 file change.
+6. **`style.title.text` vs `VizSpec.title`**: documented as "chart shows `style.title.text` when set, else the worksheet title". The chart renderer (T2) must honour this.
+7. **Annotation entry point**: `ChartCanvas` has no `onMarkClick` yet. T6 wires it to `ui.openDialog({ kind: 'annotation', target: { kind: 'pending', anchor } })`; the editor is stub-safe with `pending: null`.
+8. **Â§10 deviations row "Dual axis: not shipped" is stale**; Â§11.7 states it is superseded. Editing that row is outside "Â§formatting additions", so it is left for the owner.
+9. **â¥ 44 px phone targets** are `min-height: var(--touch-target)` on every control; jsdom has no layout, so this is verified by reading, not asserted.
+10. Two `<input type="color">` fallback `value`s (`#ffffff`, `#000000`) are DOM values, not styles; everything styled is tokens.
+
+**Left undone** nothing in scope. Shard archive (R-SHARD-ARCHIVE) and `CHANGELOG.md` entry are the parent's.", "type":"text
 
 ## What T6 must deliver
 See `docs/shards/T6-integration-v2.md`. In addition: delete T2's `stats-shim.ts` in favour of T1's `regression.ts`/`stats.ts`; delete T2's `map-common.ts` name fallback now that T1 writes `FieldMeta.geoRole`; wire T5's `onChangeGeoRole` (reload path) and T4's dialogs into `App.svelte`/`ui.dialog`; update TABLEAU-SPEC §3/§10 (percentiles and geo roles are shipped); re-measure perf; refresh ARCHITECTURE/README/CHANGELOG.

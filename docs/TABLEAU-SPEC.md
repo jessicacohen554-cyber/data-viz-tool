@@ -20,10 +20,18 @@ is stated and, when it differs from Tableau Desktop (en-US), listed in §10.
 | `datetime` | Date & Time | calendar-clock | `date` |
 | `boolean` | Boolean | `T\|F` | `bool` (Uint8) |
 
-No Geographic type (§10). A field's type and role can be changed from the
-pill menu; the override lives in `VizSpec.typeOverrides[field]` and re-parses
-the column in the worker (parse failures become null and are counted in
-`FieldMeta.parseErrors`).
+There is no Geographic *type*; instead a field carries a Tableau **geographic
+role** (v2, D-13): `FieldMeta.geoRole` ∈ `country` · `us-state` · `us-county`
+· `ercot-zone` · `latitude` · `longitude`, inferred by the worker from the
+header and the values (≥ 80 % of the sample must match the role's name table
+or coordinate range; header hints break ties) and shown as a globe (area
+roles) or pin (coordinates) glyph beside the type icon. The field menu's
+**Geographic role ▸** overrides it (`typeOverrides[field].geoRole`; `None` is
+recorded as `null`); the override is applied before inference on the next
+load and read first by the chart layer, so no re-parse is needed. A field's
+type and role can be changed from the same menu; the override lives in
+`VizSpec.typeOverrides[field]` and re-parses the column in the worker (parse
+failures become null and are counted in `FieldMeta.parseErrors`).
 
 ### 1.2 Inference
 
@@ -107,7 +115,8 @@ instance).
 
 ## 3. Aggregations and null semantics
 
-`Aggregation = 'sum'|'avg'|'min'|'max'|'count'|'countd'|'median'|'stdev'|'var'|'none'`.
+`Aggregation = 'sum'|'avg'|'min'|'max'|'count'|'countd'|'median'|'stdev'|'var'|'none'
+|'p05'|'p10'|'p25'|'p75'|'p90'|'p95'`.
 **Nulls are ignored by every aggregation**; the group's non-null values are
 the input. For an empty input (all null):
 
@@ -122,8 +131,14 @@ the input. For an empty input (all null):
 | `stdev` | STDEV | sample standard deviation, n − 1 denominator (Tableau STDEV); n = 1 → null | null |
 | `var` | VAR | sample variance, n − 1 | null |
 | `none` | (Disaggregate) | one mark per row; only when every measure pill is `none` | — |
+| `p05` … `p95` | PERCENTILE(v, 0.05 … 0.95) | type-7 (linear-interpolated) percentile at the fixed level `PERCENTILE_LEVEL[agg]`; `median` is the same estimator at 50 | null |
 
-Not shipped (§10): ATTR, population STDEVP/VARP, percentile.
+Percentiles are shipped at the six fixed levels only (v2); an arbitrary level
+is not a pill aggregation. The envelope chart's `percentile` mode asks the
+worker for the same estimator at its band levels (`QueryPlan.bands`), so the
+P5–P95 band and a `p05` pill agree to the last digit.
+
+Not shipped (§10): ATTR, population STDEVP/VARP, PERCENTILE at an arbitrary level.
 
 Disaggregation (`QueryPlan.disaggregate`) returns row-level values, capped by
 the mobile result cap (20K groups → "Top N required" message).
@@ -195,9 +210,9 @@ dimension of equal-width bins labelled by their lower edge
 | `tooltip` | Marks ▸ Tooltip | many | any |
 | `shape` | Marks ▸ Shape | **one** | discrete, ≤ 10 values |
 
-Dropping a second pill on a one-pill shelf replaces the first. Pages shelf and
-dual axis are out of scope (§10). Field order on Columns/Rows is the nesting
-order; drag within a shelf reorders.
+Dropping a second pill on a one-pill shelf replaces the first. The Pages shelf
+is out of scope (§10); dual axis is shipped from the pill menu (§11.7). Field
+order on Columns/Rows is the nesting order; drag within a shelf reorders.
 
 ## 6. Sort and filters
 
@@ -384,11 +399,12 @@ continuous pills **C**, plus per-shelf constraints. The chart picker:
 
 | Area | Tableau | Here | Why |
 |---|---|---|---|
-| Geographic type | Geographic role, maps | not shipped | no maps in v0.1 (plan §16) |
-| Dual axis | Dual axis / blended axes | not shipped; two measures → two charts or small multiples | plan §2 |
+| Geographic type | a Geographic data type with ~20 roles, geocoding, custom geocoding | a geographic **role** on a string / number field (§1.1); six roles, four bundled layers (world countries, US states, US counties, ERCOT model zones) joined by name / code / FIPS, plus latitude / longitude; no geocoding of addresses or cities | v2 (D-13); the ERCOT-zone role and layer are this tool's addition |
+| Dual axis | Dual axis / blended axes on any two measures | shipped (§11.7): pill menu ▸ Dual axis / Synchronize axis; a lone secondary pill draws on the primary axis | v2 (D-19) |
 | Pages shelf | Pages | not shipped | plan §6 |
 | Calculated fields | Calculations, LOD, table calcs | none; `calcFields` slot reserved | D-8 |
-| ATTR, STDEVP, VARP, PERCENTILE | available | not shipped | §3 |
+| PERCENTILE | any level 0–1 | six fixed levels P5 / P10 / P25 / P75 / P90 / P95 (§3); the envelope's bands take any level | v2; the pill menu stays a flat list |
+| ATTR, STDEVP, VARP | available | not shipped | §3 |
 | Week | locale week (en-US Sunday-start, week 1 = Jan 1) | **ISO 8601** week, Monday-start | deterministic across devices |
 | Number (Custom) decimals | 0–15 | 0–10 (`FormatSpec.decimals`, §7.1) | contract range; a change bumps `SPEC_VERSION` |
 | Filter on drop | the dialog opens; no filter exists until it is applied | a pass-all `FilterSpec` is written first, then the dialog opens (§6.2) | one entry per Filters pill is a contract invariant (`VIZSPEC.md`) |

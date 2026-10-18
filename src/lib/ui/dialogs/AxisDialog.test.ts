@@ -4,7 +4,7 @@ import { createDefaultSpec, defaultAxis, newPill } from '../../core/spec-default
 import { meta } from '../../core/spec-defaults.test';
 import { spec } from '../../stores/spec.svelte';
 import AxisDialog, { AXIS_LABEL, axisPreviewMeta, defaultMarkByAxis, hasSecondaryAxis, isFixed, titleMode } from './AxisDialog.svelte';
-import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from './mount.test';
+import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from '../shared/svelte-mount.test';
 
 describe('AxisDialog helpers', () => {
   it('title mode and fixed bounds read the AxisSpec encoding', () => {

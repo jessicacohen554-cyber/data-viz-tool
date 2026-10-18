@@ -6,7 +6,7 @@ import { createDefaultSpec, newPill } from '../../core/spec-defaults';
 import { meta } from '../../core/spec-defaults.test';
 import { spec } from '../../stores/spec.svelte';
 import ReferenceLineDialog, { DEFAULT_PERCENTILE, KINDS, describeReferenceLine, newReferenceLine, setKind } from './ReferenceLineDialog.svelte';
-import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from './mount.test';
+import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from '../shared/svelte-mount.test';
 
 describe('ReferenceLineDialog helpers', () => {
   it('a new line is an average on y, dashed, whole chart, with a unique id', () => {

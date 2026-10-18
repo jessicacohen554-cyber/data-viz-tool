@@ -4,7 +4,7 @@ import { TREND_MODELS } from '../../core/constants';
 import { createDefaultSpec, defaultTrendLine } from '../../core/spec-defaults';
 import { spec } from '../../stores/spec.svelte';
 import TrendLineDialog, { DEGREE, MODELS, clampDegree, setModel } from './TrendLineDialog.svelte';
-import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from './mount.test';
+import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from '../shared/svelte-mount.test';
 
 describe('TrendLineDialog helpers', () => {
   it('clamps the degree to 2..5 and seeds / drops it with the model', () => {

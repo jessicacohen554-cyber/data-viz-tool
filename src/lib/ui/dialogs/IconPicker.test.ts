@@ -5,7 +5,7 @@ import { meta } from '../../core/spec-defaults.test';
 import { getIconSet } from '../../icons';
 import { spec } from '../../stores/spec.svelte';
 import IconPicker, { matchedCount, shapeSetOf } from './IconPicker.svelte';
-import { byText, click, mountComponent, setValue, settle, type Mounted } from '../fields/svelte-mount.test';
+import { byText, click, mountComponent, setValue, settle, type Mounted } from '../shared/svelte-mount.test';
 
 const LABELS = ['Gas', 'Wind', 'Lignite', 'Zzz'];
 

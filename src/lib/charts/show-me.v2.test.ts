@@ -20,17 +20,20 @@ describe('eligibility (v2)', () => {
     for (const id of ['combo', 'area-stacked', 'area-100']) expect(reasonOf(spec, id).ok).toBe(true);
   });
 
-  it('maps need a geographic dimension (by role, override or name) or latitude + longitude', () => {
+  it('maps need a geographic dimension (by inferred role or override, never by name) or latitude + longitude', () => {
     const noGeo = makeSpec('bar', { columns: [dim('fuel')], rows: [measure('p')] });
     expect(reasonOf(noGeo, 'map-choropleth').reason).toMatch(/geographic field/);
     expect(reasonOf(noGeo, 'map-symbol').reason).toMatch(/geographic field/);
     const byName = makeSpec('bar', { columns: [dim('zone')], rows: [measure('p')] });
-    expect(reasonOf(byName, 'map-choropleth').ok).toBe(true);
+    expect(reasonOf(byName, 'map-choropleth').ok).toBe(false);
+    const byOverride = makeSpec('bar', { columns: [dim('zone')], rows: [measure('p')] }, (s) => { s.typeOverrides.zone = { geoRole: 'ercot-zone' }; });
+    expect(reasonOf(byOverride, 'map-choropleth').ok).toBe(true);
     const byMeta = makeSpec('bar', { columns: [dim('region')], rows: [measure('p')] });
     expect(reasonOf(byMeta, 'map-choropleth', [{ ...fieldMeta('region'), geoRole: 'us-state' }]).ok).toBe(true);
     expect(reasonOf(byMeta, 'map-choropleth').ok).toBe(false);
     const latLon = makeSpec('scatter', { columns: [measure('lon')], rows: [measure('lat')] });
-    expect(reasonOf(latLon, 'map-symbol').ok).toBe(true);
+    expect(reasonOf(latLon, 'map-symbol', [{ ...fieldMeta('lat', 'number'), geoRole: 'latitude' }, { ...fieldMeta('lon', 'number'), geoRole: 'longitude' }]).ok).toBe(true);
+    expect(reasonOf(latLon, 'map-symbol').ok).toBe(false);
     const explicitLayer = makeSpec('bar', { columns: [dim('region')], rows: [measure('p')] }, (s) => { s.geoLayer = 'us-states'; });
     expect(reasonOf(explicitLayer, 'map-choropleth').ok).toBe(true);
   });
@@ -64,16 +67,25 @@ describe('arrangeFor (v2)', () => {
     expect(draft.shelves.detail.map((x) => x.id)).toEqual([z.id, extra.id]);
   });
 
-  it('maps: the geographic dimension (by name) goes to Columns; choropleth colors by the measure, symbol sizes by it; lat/lon become axes', () => {
+  it('maps: the dimension with an inferred or overridden area role goes to Columns; choropleth colors by the measure, symbol sizes by it; lat/lon become axes', () => {
     const fuel = dim('fuel'); const zone = dim('zone'); const p = measure('p');
+    const geoMeta = [fieldMeta('fuel'), { ...fieldMeta('zone'), geoRole: 'ercot-zone' as const }];
     const ch = makeSpec('bar', { columns: [fuel], rows: [p], color: [zone] });
-    arrangeFor(ch, 'map-choropleth');
+    arrangeFor(ch, 'map-choropleth', geoMeta);
     expect(ch.shelves.columns[0]!.id).toBe(zone.id);
     expect(ch.shelves.color[0]!.id).toBe(p.id);
     expect(ch.shelves.detail[0]!.id).toBe(fuel.id);
+    // Without a role the name means nothing: the first dimension is taken.
+    const byName = makeSpec('bar', { columns: [fuel], rows: [p], color: [zone] });
+    arrangeFor(byName, 'map-choropleth');
+    expect(byName.shelves.columns[0]!.id).toBe(fuel.id);
+    // A spec override wins over the inferred role.
+    const over = makeSpec('bar', { columns: [fuel], rows: [p], color: [zone] }, (s) => { s.typeOverrides.fuel = { geoRole: 'us-state' }; });
+    arrangeFor(over, 'map-choropleth', geoMeta);
+    expect(over.shelves.columns[0]!.id).toBe(fuel.id);
     const lat = measure('lat'); const lon = measure('lon'); const site = dim('site');
     const sy = makeSpec('bar', { columns: [site], rows: [p], detail: [lat, lon] });
-    arrangeFor(sy, 'map-symbol');
+    arrangeFor(sy, 'map-symbol', [{ ...fieldMeta('lat'), geoRole: 'latitude' }, { ...fieldMeta('lon'), geoRole: 'longitude' }]);
     expect(sy.shelves.columns[0]!.id).toBe(lon.id);
     expect(sy.shelves.rows[0]!.id).toBe(lat.id);
     expect(sy.shelves.size[0]!.id).toBe(p.id);

@@ -66,17 +66,20 @@ export interface DatasetStore {
    */
   setType(field: string, type: DataType, dateFormat?: string): Promise<void>;
   /**
-   * Change a field's geographic role (Tableau "Geographic Role", v2; T5 glue).
-   * Records `typeOverrides[field].geoRole` when the spec does not already
-   * carry it (`null` = explicitly none) and reflects the role into `meta`.
-   * The worker has no geo inference yet, so no re-parse is requested.
+   * Change a field's geographic role (Tableau "Geographic Role", v2). Records
+   * `typeOverrides[field].geoRole` when the role in force (override, else the
+   * inferred `meta.geoRole`) differs (`null` = explicitly none) and reflects
+   * the role into `meta`. No worker round trip: a geo role only steers the
+   * chart layer, which reads the override first; the worker re-applies the
+   * override on the next load or `setType` (T1 seam 3, resolved by T6).
    */
   setGeoRole(field: string, role: GeoRole | null): void;
 }
 
 /**
  * `meta` with the spec's `geoRole` overrides applied (`null` = none). The
- * worker does not know geographic roles, so the store applies them here.
+ * worker bakes the overrides it was given at load; this covers overrides
+ * written since (the field menu) without a reload.
  */
 export function applyGeoOverrides(fields: FieldMeta[], overrides: VizSpec['typeOverrides']): FieldMeta[] {
   return fields.map((m) => {
@@ -197,8 +200,10 @@ export function createDatasetStore(deps: DatasetStoreDeps): DatasetStore {
 
   function setGeoRole(field: string, role: GeoRole | null): void {
     const cur = deps.spec.value.typeOverrides[field];
-    const recorded = cur && 'geoRole' in cur ? (cur.geoRole ?? null) : undefined;
-    if (recorded !== role) {
+    // The field menu writes the override first (dropping it when the role equals the inferred one), so this
+    // records only when called on its own: no second history entry for one menu choice.
+    const inForce = cur && 'geoRole' in cur ? (cur.geoRole ?? null) : (meta.find((m) => m.name === field)?.geoRole ?? null);
+    if (inForce !== role) {
       deps.spec.patch((d) => { d.typeOverrides[field] = { ...(d.typeOverrides[field] ?? {}), geoRole: role }; });
     }
     meta = meta.map((m) => (m.name === field ? { ...m, geoRole: role } : m));

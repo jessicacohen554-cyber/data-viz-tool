@@ -3,11 +3,12 @@
 A Tableau-style, browser-only data-visualization tool. Drag field pills onto
 Columns / Rows / Filters and the Marks card (Color, Size, Label, Detail,
 Tooltip, Shape); the app keeps Tableau's data-type, role, discrete/continuous,
-aggregation and number/date-format semantics and ships a larger chart library
-(33 types). It reads `.csv` files only — from the catalog folder in this repo
-or from a file you open on the device, which is parsed in your browser and
-never uploaded. Everything heavy runs in a Web Worker on a columnar engine, so
-a ~430K-row file stays responsive.
+aggregation, geographic-role and number/date-format semantics and ships a
+larger chart library (39 types, including filled and symbol maps, a
+probability envelope and a dual-axis combo). It reads `.csv` files only —
+from the catalog folder in this repo or from a file you open on the device,
+which is parsed in your browser and never uploaded. Everything heavy runs in
+a Web Worker on a columnar engine, so a ~430K-row file stays responsive.
 
 ![Desktop: the 2024 ERCOT hourly file with zone on Columns and SUM(price_usd_mwh) on Rows as a bar chart](docs/screenshots/desktop.png)
 
@@ -21,12 +22,21 @@ a ~430K-row file stays responsive.
    catalog file or **Open CSV from device**.
 2. Drag a field from the **Data** pane onto **Columns** or **Rows** (on a
    phone: tap the field, then tap the shelf). A dimension × measure becomes a
-   bar chart; **Show Me** lists every chart the current pills can drive and
-   rearranges them when you pick one.
-3. Right-click (or the caret on) a pill for aggregation, date level,
-   discrete/continuous, sort, bin, **Filter…** and **Format…**; a field's
-   caret converts it or changes its data type.
-4. **Views** saves the worksheet in this browser and copies a share link; the
+   bar chart, a geographic field (a globe glyph: `zone`, a state, county or
+   country column) × measure a filled map; **Show Me** lists every chart the
+   current pills can drive and rearranges them when you pick one.
+3. Right-click (or the caret on) a pill for aggregation (incl. P5…P95
+   percentiles), date level, discrete/continuous, sort, bin, quick number
+   presets, **Dual axis** / **Synchronize axis** when two measures share a
+   shelf, **Filter…** and **Format…**; a field's caret converts it, changes
+   its data type or sets its **Geographic role**.
+4. **Format ▾** (chart head; on a phone also in the Marks sheet) opens the
+   style panel (fonts, title, background), the axis dialogs (range, log,
+   gridlines, tick format), reference lines and bands, the trend line and the
+   annotation list; click a mark to pin a note to it. **Palette** offers 67
+   palettes in 20 families. The Marks card shows the map mark and base layer
+   for maps, the envelope's mode and bands, and **Icons…** for a Shape pill.
+5. **Views** saves the worksheet in this browser and copies a share link; the
    URL hash always carries the current worksheet. **Export** gives the chart
    as PNG, the aggregated table as CSV or the view as JSON (and imports one).
 
@@ -83,7 +93,10 @@ The two `tests/e2e` scripts are run by hand, not by `npm test` or CI: they
 need a built `dist/`, Python for the launcher and a Chromium that Playwright
 can find (`PLAYWRIGHT_BROWSERS_PATH`, or `CHROMIUM=<path>`); `playwright`
 itself is resolved from the project, `PLAYWRIGHT_MODULE` or the global npm
-root.
+root. `E2E_VIEWPORTS=desktop` (or `phone`) runs one viewport;
+`E2E_BASE_URL` points the smoke at a launcher you started yourself. The smoke
+covers the v0.2 features end to end (maps, envelope, combo, decorations,
+style, annotations, the icon symbol map from `tests/fixtures/plants.csv`).
 
 Rules, layout and the pre-push gate: [`CLAUDE.md`](CLAUDE.md) and
 [`CONVENTIONS.md`](CONVENTIONS.md). How it is built:

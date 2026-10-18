@@ -19,7 +19,7 @@
 
   function choose(id: ChartTypeId): void {
     if (!states.get(id)?.ok || id === current) return;
-    spec.patch((d) => arrangeFor(d, id));
+    spec.patch((d) => arrangeFor(d, id, meta));
     if (ui.isMobile) ui.sheet = 'none';
   }
 </script>

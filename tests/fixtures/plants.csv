@@ -1,0 +1,13 @@
+plant,city,fuel,lat,lon,capacity_mw
+Bayou Bend CC,Houston,Gas,29.7604,-95.3698,1150
+Trinity Ridge Peaker,Dallas,Gas,32.7767,-96.7970,420
+Hill Country Solar,Austin,Solar,30.2672,-97.7431,180
+Alamo Battery Park,San Antonio,Storage,29.4241,-98.4936,100
+Gulf Breeze Wind,Corpus Christi,Wind,27.8006,-97.3964,300
+Llano Estacado Wind,Lubbock,Wind,33.5779,-101.8552,250
+Caprock Wind Ranch,Amarillo,Wind,35.2220,-101.8313,500
+Permian Solar One,Midland,Solar,31.9973,-102.0779,220
+Big Country Wind,Abilene,Wind,32.4487,-99.7331,275
+Brazos Steam Station,Waco,Coal,31.5493,-97.1467,640
+Rio Grande Solar,Laredo,Solar,27.5306,-99.4803,150
+Comanche Peak,Glen Rose,Nuclear,32.2346,-97.7556,2400

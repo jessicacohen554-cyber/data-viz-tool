@@ -7,7 +7,7 @@
  * copied: `transferablesOf()` lists them for `postMessage`.
  */
 import type {
-  DatasetEntry, FieldMeta, FieldProfile, LoadProgress, QueryPlan, QueryResult, DataType, FilterSpec,
+  DatasetEntry, FieldMeta, FieldProfile, GeoRole, LoadProgress, QueryPlan, QueryResult, DataType, FilterSpec,
 } from '../core/types';
 
 // ---- requests --------------------------------------------------------------
@@ -18,7 +18,8 @@ export interface LoadRequest {
   entry: DatasetEntry;
   /** Absolute URL to fetch, or a File for `source: 'local'`. */
   source: string | File;
-  typeOverrides: Record<string, { type?: DataType; role?: 'dimension' | 'measure'; dateFormat?: string }>;
+  /** `VizSpec.typeOverrides`, applied before inference; `geoRole: null` clears an inferred role (v2). */
+  typeOverrides: Record<string, { type?: DataType; role?: 'dimension' | 'measure'; dateFormat?: string; geoRole?: GeoRole | null }>;
   /** Keep raw bytes to allow `setType` without re-download (false on low-memory devices). */
   keepRaw: boolean;
   /** Row cap (MAX_ROWS_MOBILE on phones). */
@@ -79,6 +80,7 @@ export function transferablesOf(reply: WorkerReply): ArrayBuffer[] {
     for (const m of reply.result.measures) push(m.values);
     const b = reply.result.boxstats;
     if (b) { push(b.q1); push(b.med); push(b.q3); push(b.lo); push(b.hi); b.outliers.forEach(push); }
+    reply.result.bands?.forEach(push);
   } else if (reply.type === 'profile') {
     push(reply.profile.counts);
   } else if (reply.type === 'rows') {

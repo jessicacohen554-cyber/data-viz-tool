@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FONT_FAMILIES } from '../../core/constants';
 import FontPicker, { FONT_KINDS, FONT_LINK_ATTR, ensureFontsLoaded, familiesOf, fontCss, fontFamily, googleFontsUrl } from './FontPicker.svelte';
-import { click, mountComponent, type Mounted } from './mount.test';
+import { click, mountComponent, type Mounted } from '../shared/svelte-mount.test';
 
 describe('FontPicker helpers', () => {
   it('resolves a family id, falling back to the app default', () => {

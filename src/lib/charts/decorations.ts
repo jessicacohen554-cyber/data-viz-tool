@@ -4,14 +4,15 @@
  * (`spec.trendLine` → extra dashed `line` series from `fit`) and annotations
  * (`spec.annotations` → `markPoint` anchors with the note as label), built
  * from the series a cartesian builder already has. Statistics come from
- * `summary` and fits from `fit` (T1's signatures, served by `stats-shim.ts`
- * until T1 lands). Framework-free (rule R-PURE); imports only types from
- * `option-common` so the two modules never form a runtime cycle.
+ * `lib/data/stats` (`summary`) and fits from `lib/data/regression` (`fit`),
+ * the same code the worker runs. Framework-free (rule R-PURE); imports only
+ * types from `option-common` so the two modules never form a runtime cycle.
  */
 import type { Annotation, Pill, ReferenceLine, VizSpec } from '../core/types';
+import { fit } from '../data/regression';
+import { summary } from '../data/stats';
 import type { ValueFormatter } from '../format/formatter';
 import type { ChartTheme, OptionObject } from './option-common';
-import { fit, summary } from './stats-shim';
 import type { Cell } from './transforms';
 
 /** One drawn series as the decorator sees it. */
@@ -173,7 +174,8 @@ export function cartesianDecorations(input: DecorationInput): Decorations {
       const fx: number[] = []; const fy: number[] = [];
       for (const i of g.idx) input.series[i]!.values.forEach((v, xi) => { if (v !== null && Number.isFinite(xs[xi] ?? NaN)) { fx.push(xs[xi]!); fy.push(v); } });
       const f = fit(fx, fy, tl.model, tl.degree);
-      if (f.coef.length === 0) { out.skipped.push(`trend (${g.name}): not enough points to fit`); continue; }
+      // A degenerate fit (too few points, constant x, singular system) has NaN coefficients.
+      if (f.coef.length === 0 || !f.coef.every(Number.isFinite)) { out.skipped.push(`trend (${g.name}): not enough points to fit`); continue; }
       let data: unknown[];
       if (input.xKind === 'value') {
         const lo = Math.min(...fx); const hi = Math.max(...fx); const n = 50;

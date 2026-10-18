@@ -1,6 +1,36 @@
 # Changelog
 
-## 2026-10-16 — v0.2 contract: dual axis, percentiles, geo roles, style, reference/trend lines, annotations, envelope, icons
+## 2026-10-18 — t6-integration-v2: every v0.2 feature reachable, seams closed, smoke and perf re-run
+
+Branch `claude/t6-integration-v2` from `739a5eb` (T1–T5 merged). Parent-level contract fixes:
+`transferablesOf` lists `result.bands` (the worker's local `bandBuffersOf` is gone),
+`LoadRequest.typeOverrides` names `geoRole`, `ChartNeeds.bands { levels, measureKey? }` is emitted
+as `plan.bands` by `queryOf` and enters the query key, and `needsFor(spec)` passes
+`envelopeLevels(spec)` for an envelope in percentile mode — so the envelope's P5–P95 / P25–P75
+bands are computed by the worker from the rows of each x. Deleted: T2's `stats-shim.ts`
+(`decorations.ts` uses `lib/data/regression` + `lib/data/stats`) and the geo name fallback in
+`map-common.ts` (`geoRoleFor` is override → inferred → none; `arrangeFor` takes `meta`); one Svelte
+mount helper remains (`src/lib/ui/shared/svelte-mount.test.ts`). `App.svelte` wires the field
+menu's geographic role to `dataset.setGeoRole` (store-only: the chart layer reads the override
+first, the worker re-applies it on the next load — no reload), a mark click to the annotation
+editor, an annotation drag to the spec, and a **Format ▾** menu (chart head; the same entries as
+buttons in the phone Marks sheet) hosting the style panel, the X / Y / secondary-Y axis dialogs,
+reference lines, the trend line and the annotation list. `PaletteDialog` groups the 67 palettes by
+`PALETTE_FAMILIES`. Chart-layer fixes found by the smoke: a latitude/longitude-only map draws on
+the US states layer by default and fits its view to the points (the US layer spans the
+antimeridian through Alaska and drew Texas 100 px wide); with coordinates a Detail dimension
+labels the marks instead of being joined to regions; a lone secondary-axis measure (its primary
+pill removed) draws on the primary axis instead of an empty 0–1 right axis. QA:
+`tests/e2e/smoke.mjs` extended with the v0.2 pass (filled map of AVG(price) by zone + bubble /
+symbol marks, envelope by hour with a band toggled, combo with dual + synchronized axes, line with
+reference and trend lines, style-panel font change, gridlines off, an annotation by clicking a
+bar, an icon symbol map from `tests/fixtures/plants.csv` opened from the device on the ERCOT zones
+layer); `zone` × `price` now opens as a filled map (Show Me's Automatic mark with the inferred
+role), so the smoke expects that and `perf-430k.mjs` drops `weekday` first to keep timing a bar.
+Perf re-measured in `docs/records/t6/RESULT-perf-2026-10-18.md`. Docs: ARCHITECTURE (v2 engine,
+charts, UI, QA), TABLEAU-SPEC §1.1 / §3 / §5 / §10 (geographic roles, percentiles and dual axis are
+shipped), CHARTS §9 (seams → integration notes), README.
+
 
 `VizSpec` is now version 2 (v1 specs migrate on load): `Pill.axis`, `axes.y2` + `synchronized`, `StyleSpec`, `referenceLines`, `trendLine`, `annotations`, `envelope`, `geoLayer`; `Aggregation` gains P5/P10/P25/P75/P90/P95; `FieldMeta.geoRole`; `MarkSettings.shapeSet/shapeOverrides/mapMark/markByAxis`; `QueryPlan.bands`. Six chart ids are declared pending registration (`PENDING_CHART_TYPE_IDS`). Owner rulings D-13…D-19 in `docs/DECISIONS.md`. Map assets under `public/geo/` and icon sets under `src/lib/icons/` arrive with this entry.
 ## 2026-10-16 — s6-integration: the working app, browser smoke, perf result

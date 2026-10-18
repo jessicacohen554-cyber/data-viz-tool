@@ -9,7 +9,7 @@ import type { ChartTypeId, FieldMeta, QueryResult, ShelfId, VizSpec } from '../c
 import { CHART_TYPE_IDS } from '../core/constants';
 import type { ChartNeeds } from '../core/query-of';
 import type { ChartTheme } from './option-common';
-import { classify } from './option-common';
+import { classify, measuresOn } from './option-common';
 
 import { bar } from './types/bar';
 import { barH } from './types/bar-h';
@@ -35,7 +35,7 @@ import { calendarHeatmap } from './types/calendar-heatmap';
 import { highlightTable } from './types/highlight-table';
 import { histogram } from './types/histogram';
 import { boxplot } from './types/boxplot';
-import { envelope } from './types/envelope';
+import { envelope, envelopeLevels } from './types/envelope';
 import { waterfall } from './types/waterfall';
 import { bullet } from './types/bullet';
 import { lollipop } from './types/lollipop';
@@ -143,12 +143,18 @@ export const PICKER_GROUPS: ReadonlyArray<{ label: string; ids: readonly ChartTy
 /**
  * Plan features for the spec's chart type, refined by the pills: scatter,
  * bubble, parallel and the symbol map disaggregate only when no dimension
- * groups the marks (CHARTS.md #9, #27, #39); boxplot always asks for box statistics.
+ * groups the marks (CHARTS.md #9, #27, #39); boxplot always asks for box
+ * statistics; an envelope in `percentile` mode asks for the percentile bands
+ * of its value measure at `envelopeLevels(spec)` (D-15).
  */
 export function needsFor(spec: VizSpec): ChartNeeds {
   const def = CHART_TYPES[spec.chartType];
   const needs: ChartNeeds = { ...(def?.needs ?? {}) };
   if (needs.disaggregate && classify(spec).dims.length > 0) delete needs.disaggregate;
+  if (spec.chartType === 'envelope' && (spec.envelope?.mode ?? 'percentile') === 'percentile') {
+    const pill = measuresOn(spec, 'rows')[0] ?? measuresOn(spec, 'columns')[0];
+    if (pill) needs.bands = { levels: envelopeLevels(spec), measureKey: pill.id };
+  }
   return needs;
 }
 

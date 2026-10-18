@@ -10,7 +10,7 @@ import type { QueryResult, VizSpec } from '../core/types';
 import type { BuildContext } from './registry';
 import { buildOption, tryBuildOption } from './spec-builder';
 import { envelopeLevels } from './types/envelope';
-import { fallbackGeoRole, geoRoleFor, mapLayerId } from './map-common';
+import { fitViewToPoints, geoRoleFor, mapLayerId } from './map-common';
 import { clearGeoLayers } from './geo-loader';
 import { date, day, dim, fieldMeta, makeResult, makeSpec, measure, resultDim, resultMeasure, zonesLayer } from './test-fixtures';
 
@@ -203,13 +203,11 @@ describe('maps (D-13, D-17)', () => {
   const rows = () => makeResult([resultDim(zone.id, ['North', 'South', 'West'])], [resultMeasure(p.id, [30, 45, null]), resultMeasure(q.id, [10, 40, 20])]);
   const withLayer = (s: VizSpec) => { s.geoLayer = 'test-zones'; };
 
-  it('geo roles: override → inferred → name fallback; the layer follows the role or the spec', () => {
-    expect(fallbackGeoRole('zone')).toBe('ercot-zone');
-    expect(fallbackGeoRole('Latitude')).toBe('latitude');
-    expect(fallbackGeoRole('fuel')).toBeNull();
+  it('geo roles: override → inferred → none (a name alone means nothing); the layer follows the role or the spec', () => {
     const spec = makeSpec('map-choropleth', { columns: [zone], color: [p] });
-    expect(geoRoleFor(spec, [], 'zone')).toBe('ercot-zone');
-    expect(mapLayerId(spec, [])).toBe('ercot-zones');
+    expect(geoRoleFor(spec, [], 'zone')).toBeNull();
+    expect(mapLayerId(spec, [])).toBeUndefined();
+    expect(mapLayerId(spec, [{ ...fieldMeta('zone'), geoRole: 'ercot-zone' }])).toBe('ercot-zones');
     const inferred = { ...fieldMeta('zone'), geoRole: 'us-state' as const };
     expect(geoRoleFor(spec, [inferred], 'zone')).toBe('us-state');
     expect(geoRoleFor(spec, [{ ...fieldMeta('zone'), geoRole: null }], 'zone')).toBeNull();
@@ -220,7 +218,7 @@ describe('maps (D-13, D-17)', () => {
   });
 
   it('an unloaded layer yields a pending option instead of throwing', () => {
-    const o = buildOption(ctx(makeSpec('map-choropleth', { columns: [zone], color: [p] }), rows()));
+    const o = buildOption(ctx(makeSpec('map-choropleth', { columns: [zone], color: [p] }), rows(), [{ ...fieldMeta('zone'), geoRole: 'ercot-zone' }]));
     expect(o.series).toEqual([]);
     expect(o.__meta).toMatchObject({ geoPending: true, geoLayer: 'ercot-zones' });
   });
@@ -272,11 +270,11 @@ describe('maps (D-13, D-17)', () => {
     expect((b.__meta as { mark: string }).mark).toBe('bubble');
   });
 
-  it('symbol from latitude + longitude measures (name fallback), grouped by a Color dimension, shapes from the Shape shelf', () => {
+  it('symbol from latitude + longitude measures (inferred roles), grouped by a Color dimension, shapes from the Shape shelf', () => {
     const lat = measure('lat', 'none'); const lon = measure('lon', 'none'); const site = dim('site'); const fuel = dim('fuel');
     const result = makeResult([resultDim(site.id, ['a', 'b', 'c']), resultDim(fuel.id, ['Wind', 'Solar', 'Wind'])], [resultMeasure(lat.id, [30, 31, 32]), resultMeasure(lon.id, [-100, -99, -98]), resultMeasure(q.id, [1, 2, 3])]);
     const spec = makeSpec('map-symbol', { columns: [lon], rows: [lat], detail: [site], color: [fuel], shape: [fuel], size: [q] }, (s) => { s.geoLayer = 'test-zones'; s.marks.shapeSet = 'power-gen'; });
-    const o = buildOption(ctx(spec, result));
+    const o = buildOption(ctx(spec, result, [{ ...fieldMeta('lat', 'number'), geoRole: 'latitude' }, { ...fieldMeta('lon', 'number'), geoRole: 'longitude' }]));
     const s = o.series as S[];
     expect(s.map((x) => x.name)).toEqual(['Wind', 'Solar']);
     expect((s[0]!.data as number[][]).map((d) => [d[0], d[1]])).toEqual([[-100, 30], [-98, 32]]);
@@ -373,7 +371,7 @@ describe('trend lines', () => {
     expect((o.legend as { data: string[] }).data).toEqual(['AVG(price)']);
     const fmt = (o.tooltip as { formatter: (p: unknown) => string }).formatter;
     const html = fmt([{ seriesName: 'AVG(price) trend', seriesIndex: 1, value: [xs[0], 1], color: '#000', axisValue: xs[0] }]);
-    expect(html).toMatch(/y = 1 \+ 2·x/);
+    expect(html).toMatch(/y = 1 \+ 2x/);
     expect(html).toMatch(/R² 1\.000/);
     spec.trendLine.showEquation = false;
     const quiet = (buildOption(ctx(spec, result)).tooltip as { formatter: (p: unknown) => string }).formatter([{ seriesName: 'AVG(price) trend', seriesIndex: 1, value: [xs[0], 1], color: '#000' }]);
@@ -538,5 +536,52 @@ describe('Shape shelf → icons (ICONS.md §7)', () => {
     expect(typeof ms[0]!.symbol).toBe('function');
     expect((ms[0]!.symbol as (v: unknown[]) => string)(ms[0]!.data[0] as unknown[])).toMatch(/^path:\/\//);
     expect((mixed.legend as { data: string[] }).data).toEqual(['N', 'S']);
+  });
+});
+
+describe('latitude / longitude without an area role (T6)', () => {
+  it('draws on the default layer instead of failing, and a spec layer still wins', () => {
+    const lat = measure('lat', 'none'); const lon = measure('lon', 'none');
+    const meta = [{ ...fieldMeta('lat', 'number'), geoRole: 'latitude' as const }, { ...fieldMeta('lon', 'number'), geoRole: 'longitude' as const }];
+    const spec = makeSpec('map-symbol', { columns: [lon], rows: [lat] });
+    expect(mapLayerId(spec, meta)).toBe('us-states');
+    expect(mapLayerId(spec, [])).toBeUndefined();
+    spec.geoLayer = 'ercot-zones';
+    expect(mapLayerId(spec, meta)).toBe('ercot-zones');
+  });
+});
+
+describe('a lone secondary-axis measure (T6)', () => {
+  it('draws on the primary axis with one y axis, even when axes are synchronized', () => {
+    const zone = dim('zone'); const p = measure('price', 'avg', { axis: 'secondary' });
+    const result = makeResult([resultDim(zone.id, ['N', 'S'])], [resultMeasure(p.id, [10, 20])]);
+    const spec = makeSpec('bar', { columns: [zone], rows: [p] }, (s) => { s.axes.synchronized = true; });
+    const o = buildOption(ctx(spec, result));
+    const axes = (Array.isArray(o.yAxis) ? o.yAxis : [o.yAxis]) as Axis[];
+    expect(axes).toHaveLength(1);
+    const s = (o.series as S[])[0]!;
+    expect(s.name).toBe('AVG(price)');
+    expect(s.yAxisIndex ?? 0).toBe(0);
+    expect(axes[0]!.max).toBeUndefined();
+  });
+});
+
+describe('coordinate marks fit the view to the data (T6)', () => {
+  const close = (got: unknown, want: number[][]) => (got as number[][]).forEach((pair, i) => pair.forEach((v, j) => expect(v).toBeCloseTo(want[i]![j]!, 6)));
+  it('sets geo.boundingCoords from the padded lon/lat extent; centroid marks on a region layer do not', () => {
+    close(fitViewToPoints([[-100, -96], [28, 32]]), [[-100.6, 27.4], [-95.4, 32.6]]);
+    // A single point still gets a FIT_MIN_SPAN-degree window.
+    close(fitViewToPoints([[-95.4, -95.4], [29.8, 29.8]]), [[-96.7, 28.5], [-94.1, 31.1]]);
+    const lat = measure('lat', 'none'); const lon = measure('lon', 'none'); const site = dim('site');
+    const result = makeResult([resultDim(site.id, ['a', 'b'])], [resultMeasure(lat.id, [30, 32]), resultMeasure(lon.id, [-100, -96])]);
+    const spec = makeSpec('map-symbol', { columns: [lon], rows: [lat], detail: [site] }, (s) => { s.geoLayer = 'test-zones'; });
+    const o = buildOption(ctx(spec, result, [{ ...fieldMeta('lat', 'number'), geoRole: 'latitude' }, { ...fieldMeta('lon', 'number'), geoRole: 'longitude' }]));
+    close((o.geo as { boundingCoords: unknown }).boundingCoords, [[-100.6, 29.7], [-95.4, 32.3]]);
+    const zone = dim('zone'); const p = measure('price', 'avg');
+    const byRegion = buildOption(ctx(makeSpec('map-symbol', { columns: [zone], color: [p] }, (s) => { s.geoLayer = 'test-zones'; }), makeResult([resultDim(zone.id, ['North', 'South'])], [resultMeasure(p.id, [1, 2])])));
+    expect((byRegion.geo as { boundingCoords?: unknown }).boundingCoords).toBeUndefined();
+    // With coordinates, a Detail dimension is a label, not a region to join: nothing is reported unmatched.
+    expect((o.__meta as { unmatched: string[]; points: number }).unmatched).toEqual([]);
+    expect((o.__meta as { points: number }).points).toBe(2);
   });
 });

@@ -10,7 +10,7 @@ import { CHART_TYPE_IDS } from '../core/constants';
 import { newId } from '../core/spec-defaults';
 import { CHART_TYPES, type Requirement } from './registry';
 import { classify, isContinuousPill, isDatePill, isDimPill, isMeasurePill } from './option-common';
-import { AREA_ROLES, explicitGeoRole, fallbackGeoRole } from './map-common';
+import { AREA_ROLES, geoRoleFor } from './map-common';
 
 export interface Eligibility { id: ChartTypeId; ok: boolean; reason?: string }
 
@@ -43,14 +43,13 @@ export function eligibility(spec: VizSpec, meta: FieldMeta[]): Eligibility[] {
 
 /**
  * Best chart for the current pills (filled map if a dimension carries an
- * assigned area geo role → bar → line if date → scatter if 2 measures →
- * text-table). Only an inferred or user-set geo role suggests a map; the
- * name fallback never does.
+ * area geo role → bar → line if date → scatter if 2 measures →
+ * text-table). Only an inferred or user-set geo role suggests a map.
  */
 export function suggest(spec: VizSpec, meta: FieldMeta[]): ChartTypeId {
   const c = classify(spec);
   const axisPills = [...spec.shelves.columns, ...spec.shelves.rows];
-  const geoDim = c.dims.find((d) => { const r = explicitGeoRole(spec, meta, d.field); return r != null && AREA_ROLES.includes(r); });
+  const geoDim = c.dims.find((d) => { const r = geoRoleFor(spec, meta, d.field); return r !== null && AREA_ROLES.includes(r); });
   if (geoDim && c.measures.length >= 1) return 'map-choropleth';
   if (c.dims.length >= 1 && c.measures.length >= 1) return 'bar';
   if (axisPills.some((p) => isDatePill(p) || (p.date?.mode === 'trunc')) && c.measures.length >= 1) return 'line';
@@ -61,13 +60,16 @@ export function suggest(spec: VizSpec, meta: FieldMeta[]): ChartTypeId {
 /**
  * Tableau's Show Me move (CHARTS.md §3): place the current pills for `target`
  * on a draft spec. Pills not consumed go to Detail; the filters shelf is left
- * alone. Mutates `draft` (callers pass the `patch` draft).
+ * alone. Mutates `draft` (callers pass the `patch` draft). `meta` supplies the
+ * inferred geo roles the map moves look for (overrides in `draft` win).
  */
-export function arrangeFor(draft: VizSpec, target: ChartTypeId): void {
+export function arrangeFor(draft: VizSpec, target: ChartTypeId, meta: FieldMeta[] = []): void {
   const pool: Pill[] = [];
   for (const s of ['columns', 'rows', 'color', 'size', 'label', 'detail', 'tooltip', 'shape'] as const) { pool.push(...draft.shelves[s]); draft.shelves[s] = []; }
   const D = pool.filter(isDimPill);
   const M = pool.filter(isMeasurePill);
+  const roleOf = (p: Pill) => geoRoleFor(draft, meta, p.field);
+  const areaDim = D.find((d) => { const r = roleOf(d); return r !== null && AREA_ROLES.includes(r); });
   const T = D.find(isDatePill);
   const C = pool.find((p) => isContinuousPill(p) && !isDatePill(p));
   const used = new Set<string>();
@@ -88,12 +90,12 @@ export function arrangeFor(draft: VizSpec, target: ChartTypeId): void {
     // Envelope: a date or continuous x; one measure (percentile mode) or low/high(/mid) (columns mode).
     case 'envelope': { const x = T ?? D1; put('columns', x); put('rows', M1, M2, M3); break; }
     case 'map-choropleth': {
-      const geo = D.find((d) => { const r = fallbackGeoRole(d.field); return r !== null && AREA_ROLES.includes(r); }) ?? D1;
+      const geo = areaDim ?? D1;
       put('columns', geo); put('color', M1); put('detail', ...Drest([geo])); break;
     }
     case 'map-symbol': {
-      const geo = D.find((d) => { const r = fallbackGeoRole(d.field); return r !== null && AREA_ROLES.includes(r); });
-      const lat = M.find((m) => fallbackGeoRole(m.field) === 'latitude'); const lon = M.find((m) => fallbackGeoRole(m.field) === 'longitude');
+      const geo = areaDim;
+      const lat = M.find((m) => roleOf(m) === 'latitude'); const lon = M.find((m) => roleOf(m) === 'longitude');
       const rest = M.filter((m) => m !== lat && m !== lon);
       put('columns', geo ?? lon); put('rows', lat); put('size', rest[0]); put('color', Drest([geo])[0]); put('detail', ...Drest([geo, Drest([geo])[0]])); break;
     }

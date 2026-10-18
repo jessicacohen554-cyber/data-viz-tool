@@ -17,6 +17,12 @@ export interface ChartNeeds {
   disaggregate?: boolean;
   /** Compute boxplot statistics for the first measure. */
   boxstats?: boolean;
+  /**
+   * Percentile bands per group for the envelope chart (v2): one vector per
+   * level (0..100) over the rows of `measureKey`'s pill (the first measure
+   * when absent or not a plan measure).
+   */
+  bands?: { levels: number[]; measureKey?: string };
 }
 
 /** Pills that act as group-by dimensions: dimension role, or a binned measure, or a date part/trunc. */
@@ -83,6 +89,10 @@ export function queryOf(spec: VizSpec, needs: ChartNeeds = {}, limit = QUERY_LIM
   const sort = sortOf(spec, dims, measures);
   if (sort) plan.sort = sort;
   if (needs.boxstats && measures[0]) plan.boxstats = { measureKey: measures[0].key };
+  if (needs.bands && needs.bands.levels.length > 0 && measures[0]) {
+    const target = measures.find((m) => m.key === needs.bands!.measureKey) ?? measures[0];
+    plan.bands = { measureKey: target.key, levels: [...needs.bands.levels] };
+  }
   return plan;
 }
 
@@ -131,6 +141,7 @@ export function queryKey(plan: QueryPlan): string {
     s: plan.sort ? [sortDimField(plan), plan.sort.by, plan.sort.dir, plan.sort.manual ?? null, sortMeasureSig(plan)] : null,
     l: plan.limit,
     b: plan.boxstats ? measureSigFor(plan, plan.boxstats.measureKey) : null,
+    p: plan.bands ? [measureSigFor(plan, plan.bands.measureKey), plan.bands.levels] : null,
   };
   return stableStringify(canon);
 }

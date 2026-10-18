@@ -1,4 +1,4 @@
-> Status: ACTIVE — written by S0 as a skeleton, completed by S6 (integration) with S1–S5 merged. Code wins on conflict (R-TRUTH).
+> Status: ACTIVE — written by S0 as a skeleton, completed by S6 (integration) with S1–S5 merged, extended by T6 (integration v2) with T1–T5 merged. Code wins on conflict (R-TRUTH).
 
 # Architecture
 
@@ -34,7 +34,8 @@ keys a 16-entry LRU in `data-client.ts`.
 | `lib/data` | protocol, column store, inference, date parsing, CSV loading, filters, engine, client | `lib/core` | svelte, DOM, echarts |
 | `lib/format` | number and date formatting per `FormatSpec` | `lib/core` | svelte, DOM |
 | `lib/palette` | registry, ramp generation, validation, `pick` | `lib/core` | svelte, DOM |
-| `lib/charts` | ECharts setup, chart registry, Show Me, spec → option, transforms | `lib/core`, `lib/format`, `lib/palette`, `echarts/core` | svelte, DOM (except `ChartCanvas` in `lib/ui/chart`) |
+| `lib/charts` | ECharts setup, chart registry, Show Me, spec → option, transforms, decorations, maps, geo layer cache, style pass | `lib/core`, `lib/format`, `lib/palette`, `lib/icons`, `lib/data/{regression,stats,geo-names}` (pure statistics and name tables, never the engine or the client), `echarts/core` | svelte, DOM (except `ChartCanvas` in `lib/ui/chart`) |
+| `lib/icons` | icon sets for the Shape shelf (`docs/ICONS.md`) | `lib/core` | svelte, DOM |
 | `lib/stores` | runes stores: spec (+undo), dataset, query (effect pipeline), views, ui | everything above | — |
 | `lib/ui` | Svelte components | everything | `lib/data` internals (only via `data-client`) |
 | `workers` | the worker entry | `lib/data`, `lib/core` | DOM, echarts, svelte |
@@ -65,10 +66,24 @@ re-download; when they were dropped the worker answers `needsReload`.
 **Engine** (`engine.ts`): filters compile to cached `Uint8Array` masks ANDed
 per query (`filters.ts`); group-by uses a dense mixed-radix key while the
 product of dimension cardinalities is ≤ `DENSE_KEY_MAX_CELLS` (4M), else a
-hash; one pass accumulates sum / count / min / max / sumsq; median and
-boxplot statistics bucket by counting sort; COUNTD by sorted pairs; Top N is
-an inner aggregate then a mask. Derived date-part columns are computed on
-first use and cached per level. `rowsOf()` serves the raw-row preview.
+hash; one pass accumulates sum / count / min / max / sumsq; median, the fixed
+percentiles P5…P95 (`stats.quantile`, type 7) and boxplot statistics bucket by
+counting sort; COUNTD by sorted pairs; Top N is an inner aggregate then a
+mask. `plan.bands` (the envelope's percentile mode) yields one `Float64Array`
+per level over the same sorted buckets (`result.bands`). Derived date-part
+columns are computed on first use and cached per level. `rowsOf()` serves the
+raw-row preview.
+
+**Geographic roles** (`type-inference.ts` + `geo-names.ts`): after the sample
+is typed, each column is matched against the name tables (US states by name /
+code / FIPS, countries by name / ISO-2 / ISO-3, the seven ERCOT model zones
+with the weather-zone crosswalk, US counties under a county header) or the
+coordinate ranges (latitude / longitude under a `lat` / `lon` header); a role
+needs ≥ 80 % of the sample to match and the header hint breaks ties. The
+result is `FieldMeta.geoRole`; a `typeOverrides[field].geoRole` from the spec
+(including `null` for "none") is applied before the reply and re-applied on
+`setType`, so the chart layer can read the override first and never needs a
+reload for a role change.
 
 **Client** (`data-client.ts`): promise API over the protocol; the worker is
 spawned lazily on the first request (so importing a store never touches
@@ -85,8 +100,8 @@ reply echoes it. Typed arrays in replies are transferred, not copied
 
 | Request | Reply | Notes |
 |---|---|---|
-| `load { entry, source, typeOverrides, keepRaw, maxRows }` | `progress`* … `loaded { meta, rowCount, elapsedMs, warnings }` | `source` is an absolute URL or a `File`; `maxRows` is `MAX_ROWS_MOBILE` on phones |
-| `query { plan }` | `result { result: QueryResult }` | `plan` is `queryOf(spec, needsFor(spec), limit)` |
+| `load { entry, source, typeOverrides, keepRaw, maxRows }` | `progress`* … `loaded { meta, rowCount, elapsedMs, warnings }` | `source` is an absolute URL or a `File`; `maxRows` is `MAX_ROWS_MOBILE` on phones; `typeOverrides[f].geoRole` (v2) is applied before inference |
+| `query { plan }` | `result { result: QueryResult }` | `plan` is `queryOf(spec, needsFor(spec), limit)`; `plan.bands` → `result.bands` (v2), transferred like every other typed array |
 | `profile { field, limit, search }` | `profile { profile: FieldProfile }` | the filter dialog's value list |
 | `rows { offset, limit, fields, filters }` | `rows { fields, columns, total }` | numeric columns as `Float64Array`, others `string[]` |
 | `setType { field, dataType, dateFormat }` | `meta { meta }` or `needsReload` | re-parse one column from the kept raw bytes |
@@ -120,13 +135,33 @@ the entity (rule 7), sequential or diverging ramps for continuous color.
 label, group, icon, requires, channels, renderer:'echarts'|'dom', needs?,
 echartsModules, build(ctx)}`; `tests` cross-check `echartsModules` against
 what `echarts-setup.ts` registers (D-1). `needsFor(spec)` refines plan needs
-by the pills (scatter / bubble / parallel disaggregate only without a
-grouping dimension; boxplot always asks for box statistics). `PICKER_GROUPS`
-is the Show Me grid order.
+by the pills (scatter / bubble / parallel / symbol map disaggregate only
+without a grouping dimension; boxplot always asks for box statistics; an
+envelope in percentile mode asks for `bands` at `envelopeLevels(spec)` for its
+value measure). `PICKER_GROUPS` is the Show Me grid order.
 
 `show-me.ts`: `eligibility(spec, meta)` per type with a reason when unmet,
-`suggest(spec, meta)` (bar → line → scatter → text table), `arrangeFor(draft,
-id)` the Tableau move applied inside one `spec.patch`.
+`suggest(spec, meta)` (filled map when a dimension carries an area geo role →
+bar → line → scatter → text table), `arrangeFor(draft, id, meta)` the Tableau
+move applied inside one `spec.patch` (`meta` supplies the inferred geo roles
+the map moves look for).
+
+v2 builders share three helpers. `option-common.ts` `cartesianModel` pivots
+the measures into series with an axis each (`Pill.axis`; combo defaults the
+second measure onward to the right axis; when no measure is primary all draw
+primary) and `valueAxes` emits `yAxis[1]` from `axes.y2`, copying the primary
+range when `axes.synchronized`. `decorations.ts` turns `referenceLines` into
+`markLine` / `markArea` (statistics from `lib/data/stats`), `trendLine` into
+dashed fitted series (`lib/data/regression`) and `annotations` into
+`markPoint` labels, and exposes `annotationAnchors(option)` for the canvas's
+drag handles. `map-common.ts` resolves the geographic pills (`geoRoleFor`:
+override → inferred → none), picks the layer (`spec.geoLayer`, else the area
+role's layer, else `DEFAULT_LATLON_LAYER` for coordinates), joins labels to
+regions (`geo.ts`) and draws the five map marks; `geo-loader.ts` fetches a
+layer from `public/geo/` once and registers it with ECharts, the builder
+returning `__meta.geoPending` until it is there. `style.ts` applies
+`StyleSpec` (fonts via `lib/ui/chart/fonts.ts`, title, caption, background,
+padding) to every ECharts option.
 
 `spec-builder.ts` `tryBuildOption({spec, result, meta, isMobile, theme})`
 returns `{ok, option}` or `{ok:false, error}`; `option.__meta` carries data
@@ -160,7 +195,10 @@ spec.value ──► views.persist (300 ms debounce) ──► localStorage rece
   `movePill`, `removePill`, `updatePill`, `findPill`. Single-pill shelves
   replace; moving a pill off Filters drops its `FilterSpec`.
 - `dataset.svelte.ts`: load state, `setType` (override + re-parse or reload),
-  `openLocal(file)`; a superseded slow load never clobbers the newer one.
+  `setGeoRole` (records `typeOverrides[field].geoRole` only when the role in
+  force differs — the field menu writes it first — and reflects it into
+  `meta`; no worker round trip), `openLocal(file)`; a superseded slow load
+  never clobbers the newer one.
 - `query.svelte.ts`: `planFor()` / `submit()` are plain functions the
   `$effect` calls; a reply for an older `seq` is dropped; `limit` is
   `QUERY_LIMIT_MOBILE` on phones.
@@ -186,17 +224,32 @@ worksheet shows the first 200 raw rows through `client.rows()`.
 App.svelte
 ├── TopNav (undo/redo; slots: Dataset button · Views button · ExportMenu)
 ├── desktop ≥ 900px: .app__body grid 260px | 320px | 1fr
-│   ├── FieldPanel  (FieldItem drag sources; field menu: add to shelf, convert, change type, format)
+│   ├── FieldPanel  (FieldItem drag sources; field menu: add to shelf, convert, change type, geographic role, format)
 │   ├── ShelfPanel  (Shelf × Columns/Rows/Filters + MarksCard; the one drop subscriber; PillMenu)
-│   └── chart pane  (title · Show Me toggle · Palette; ChartCanvas; ChartPicker side panel; result footer)
+│   │     MarksCard: chart type, map mark + layer (GeoLayerPicker), envelope mode + bands, Icons… (IconPicker)
+│   │     PillMenu: aggregation incl. percentiles, date level, sort, bin, number presets, dual axis / synchronize / combo mark
+│   └── chart pane  (title · Show Me toggle · Palette · Format ▾ menu; ChartCanvas; ChartPicker side panel; result footer)
 ├── phone < 900px: chart pane only + bottom bar → BottomSheet
 │   ├── Data   → FieldPanel          (tap a field: arms tap-to-place, opens the Shelves sheet)
 │   ├── Shelves→ ShelfPanel showMarks={false}
-│   ├── Marks  → ShelfPanel showMain={false} (+ palette button)
+│   ├── Marks  → ShelfPanel showMain={false} (+ palette button + the Format entries as buttons)
 │   └── Chart  → ChartPicker
-├── dialogs (ui.dialog): DatasetPicker · SavedViews · FormatDialog · FilterDialog · PaletteDialog
+├── dialogs (ui.dialog): DatasetPicker · SavedViews · FormatDialog · FilterDialog · PaletteDialog (67 palettes by family)
+│                        StylePanel (a side panel on desktop, a sheet on phones) · AxisDialog (x / y / y2)
+│                        ReferenceLineDialog · TrendLineDialog · AnnotationEditor (opened on a mark click with the anchor)
 └── Toast
 ```
+
+The Format menu (chart head, `Menu`) and the phone Marks sheet list the same
+entries: style panel, X / Y (/ secondary Y when a pill is secondary) axis,
+reference lines, trend line, annotations; axis and decoration entries are
+disabled for DOM renderers. `ChartCanvas` emits `onMarkClick` (→
+`ui.openDialog({ kind: 'annotation', target: { kind: 'pending', anchor } })`)
+and `onAnnotationDrag` (→ one `spec.patch` of the note's offset); it loads a
+map's layer on `__meta.geoPending` and rebuilds, and injects the style
+panel's web font once per family. `IconPicker` and `GeoLayerPicker` stay
+hosted by `MarksCard` with local open flags (transient UI state, not viz
+state).
 
 Drag (`lib/ui/drag/drag-controller.ts`, pure DOM): Pointer Events with
 `setPointerCapture`, `touch-action:none` on sources only, a drag starts after
@@ -225,9 +278,10 @@ Touch targets are ≥ 44px below 900px; dialogs become bottom sheets there.
 `tests/perf/engine-430k.test.ts` asserts the engine numbers on
 `data/datasets/ercot-system-hourly-2019-2025.csv` (`PERF=1 npm run perf`);
 `tests/e2e/perf-430k.mjs` measures the same file end to end in Chromium
-(load, drop → paint, 3-dim group-by, shell paint). Measured numbers are
-recorded in `docs/records/s6/RESULT-perf-<date>.md`, never pinned into this
-doc.
+(load, drop → paint, 3-dim group-by, shell paint; the first drop is `weekday`
+so the chart is a bar, since `zone` now opens as a map). Measured numbers are
+recorded in `docs/records/<lane>/RESULT-perf-<date>.md` (`s6` for v0.1, `t6`
+for v0.2), never pinned into this doc.
 
 ## 10. Build, launch, deploy, QA
 
@@ -239,8 +293,16 @@ and written on `main` only by `build-dist.yml` (rule 11); the catalog lives at
 `data/`, outside Vite's `public/`, so it never enters `dist/`.
 
 `tests/e2e/smoke.mjs` is the browser smoke test: it builds nothing, starts the
-launcher on a spare port, drives the built `dist/` in the pre-installed
-Chromium at 1280×800 and 390×844 (pick the 2024 file, drop `zone` and
-`price_usd_mwh` with synthetic pointer events, bar → line → heatmap →
-treemap, hash round-trip, CSV export, saved view) and fails on any console
-error. It is run by hand after `npm run build`, not by `npm test` or CI.
+launcher on a spare port (or uses `E2E_BASE_URL`), drives the built `dist/`
+in the pre-installed Chromium at 1280×800 and 390×844 (pick the 2024 file,
+drop `zone` and `price_usd_mwh` with synthetic pointer events → the Automatic
+filled map, line → heatmap → treemap, hash round-trip, CSV export, saved
+view; then the v0.2 pass: filled map of AVG(price) by zone with the bubble
+and symbol marks, envelope by HOUR(timestamp) in percentile mode with a band
+toggled, combo with a dual axis and synchronized axes, a line with an average
+reference line and a linear trend line, a font change in the style panel and
+gridlines off in the axis dialog, an annotation added by clicking a bar, and
+a symbol map with power-gen icons from `tests/fixtures/plants.csv` opened
+from the device on the ERCOT zones layer) and fails on any console error or
+any chart hint (an eligibility reason or a builder error) where a canvas was
+expected. It is run by hand after `npm run build`, not by `npm test` or CI.

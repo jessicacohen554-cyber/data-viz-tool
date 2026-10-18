@@ -9,7 +9,12 @@
    *   hash restores its spec by loading the dataset it names from the catalog,
    *   otherwise the dataset picker opens.
    * - Dialog state lives in `ui.dialog` (one home, S5 seam 2); every dialog is
-   *   hosted here and opened through the callback props of the panes.
+   *   hosted here and opened through the callback props of the panes. v2 (T6):
+   *   the Format menu in the chart head (and the phone Marks sheet) opens the
+   *   style panel, the axis dialogs, reference lines, the trend line and the
+   *   annotation list; a click on a mark opens the annotation editor on that
+   *   anchor; a dragged note writes its offset to the spec; the field menu's
+   *   geographic role reaches `dataset.setGeoRole`.
    * - With no pill driving a query, a `text-table` worksheet shows the raw first
    *   rows through `client.rows()` (S3 seam 6).
    * Layout classes live in app.css §4; everything else is tokens only (R-TOKENS).
@@ -22,7 +27,7 @@
   import { chartDef } from '$charts/registry';
   import { suggest } from '$charts/show-me';
   import { ALL_SHELVES, DEFAULT_CHART } from '$core/constants';
-  import { ui, type SheetId } from '$stores/ui.svelte';
+  import { ui, type AxisId, type SheetId } from '$stores/ui.svelte';
   import { spec } from '$stores/spec.svelte';
   import { dataset } from '$stores/dataset.svelte';
   import { query } from '$stores/query.svelte';
@@ -32,9 +37,11 @@
   import BottomSheet from '$ui/shared/BottomSheet.svelte';
   import ProgressBar from '$ui/shared/ProgressBar.svelte';
   import Icon from '$ui/shared/Icon.svelte';
+  import Menu, { type MenuSection } from '$ui/shared/Menu.svelte';
   import FieldPanel from '$ui/fields/FieldPanel.svelte';
   import ShelfPanel from '$ui/shelves/ShelfPanel.svelte';
   import ChartCanvas from '$ui/chart/ChartCanvas.svelte';
+  import type { MarkClickEvent } from '$ui/chart/events';
   import ChartPicker from '$ui/chart/ChartPicker.svelte';
   import DatasetPicker from '$ui/dialogs/DatasetPicker.svelte';
   import SavedViews from '$ui/dialogs/SavedViews.svelte';
@@ -42,6 +49,11 @@
   import FormatDialog from '$ui/dialogs/FormatDialog.svelte';
   import FilterDialog from '$ui/dialogs/FilterDialog.svelte';
   import PaletteDialog from '$ui/dialogs/PaletteDialog.svelte';
+  import StylePanel from '$ui/dialogs/StylePanel.svelte';
+  import AxisDialog, { AXIS_LABEL, hasSecondaryAxis } from '$ui/dialogs/AxisDialog.svelte';
+  import ReferenceLineDialog from '$ui/dialogs/ReferenceLineDialog.svelte';
+  import TrendLineDialog from '$ui/dialogs/TrendLineDialog.svelte';
+  import AnnotationEditor from '$ui/dialogs/AnnotationEditor.svelte';
 
   /** Raw rows shown for an empty text-table worksheet. */
   const RAW_ROWS = 200;
@@ -58,10 +70,15 @@
   let canvas = $state<ChartCanvas | null>(null);
   let showMe = $state(false);
   let raw = $state<TableModel | null>(null);
+  /** Anchor of the open Format menu (chart head); null when closed. */
+  let formatMenu = $state<HTMLElement | null>(null);
 
   const manifestUrl = `${import.meta.env.BASE_URL}data/manifest.json`;
   const def = $derived(chartDef(spec.value.chartType));
   const hasColor = $derived(spec.value.shelves.color.length > 0);
+  const isEcharts = $derived(def.renderer === 'echarts');
+  const secondaryAxis = $derived(hasSecondaryAxis(spec.value));
+  const annotationCount = $derived(spec.value.annotations.length);
   const wantsRaw = $derived(dataset.ready && query.key === null && spec.value.chartType === 'text-table');
   const phaseLabel: Record<string, string> = { download: 'Downloading', parse: 'Parsing', build: 'Building columns' };
   const num = new Intl.NumberFormat('en-US');
@@ -213,7 +230,34 @@
   const openFormatForPill = (pillId: string) => ui.openDialog({ kind: 'format', target: { kind: 'pill', pillId } });
   const openFilter = (pillId: string) => ui.openDialog({ kind: 'filter', pillId });
   const changeType = (field: string, type: Parameters<typeof dataset.setType>[1], dateFormat?: string) => { void dataset.setType(field, type, dateFormat); };
+  const changeGeoRole = (field: string, role: Parameters<typeof dataset.setGeoRole>[1]) => dataset.setGeoRole(field, role);
   const closeDialog = () => ui.closeDialog();
+
+  /** Format menu entries (T4 dialogs); the same list feeds the desktop menu and the phone Marks sheet. */
+  interface FormatEntry { id: string; label: string; hint?: string; disabled?: boolean; open: () => void }
+  const formatEntries = $derived.by<FormatEntry[]>(() => {
+    const axes: AxisId[] = secondaryAxis ? ['x', 'y', 'y2'] : ['x', 'y'];
+    return [
+      { id: 'style', label: 'Style panel…', hint: 'fonts, title, background', open: () => ui.openDialog({ kind: 'style' }) },
+      ...axes.map((which): FormatEntry => ({ id: `axis-${which}`, label: `${AXIS_LABEL[which]}…`, disabled: !isEcharts, open: () => ui.openDialog({ kind: 'axis', which }) })),
+      { id: 'reference', label: 'Reference lines…', hint: spec.value.referenceLines.length ? String(spec.value.referenceLines.length) : undefined, disabled: !isEcharts, open: () => ui.openDialog({ kind: 'reference' }) },
+      { id: 'trend', label: 'Trend line…', hint: spec.value.trendLine.enabled ? 'on' : undefined, disabled: !isEcharts, open: () => ui.openDialog({ kind: 'trend' }) },
+      { id: 'annotations', label: 'Annotations…', hint: annotationCount ? String(annotationCount) : 'click a mark to add', open: () => ui.openDialog({ kind: 'annotation', target: null }) },
+    ];
+  });
+  const formatSections = $derived<MenuSection[]>([{ items: formatEntries.map((e) => ({ id: e.id, label: e.label, hint: e.hint, disabled: e.disabled, onSelect: e.open })) }]);
+
+  /** A click on a mark: open the annotation editor on that anchor (T4 seam 7). */
+  function onMarkClick(e: MarkClickEvent): void {
+    ui.openDialog({ kind: 'annotation', target: { kind: 'pending', anchor: { x: e.x, ...(e.y === null ? {} : { y: e.y }), seriesKey: e.seriesKey } } });
+  }
+
+  /** A note's drag handle was released: persist the new offset (one undo step). */
+  function onAnnotationDrag(id: string, offset: [number, number]): void {
+    spec.patch((d) => { const a = d.annotations.find((x) => x.id === id); if (a) a.offset = offset; });
+  }
+
+  const annotationTarget = $derived(ui.dialog?.kind === 'annotation' ? ui.dialog.target : null);
 </script>
 
 {#snippet datasetSlot()}
@@ -237,7 +281,7 @@
         <span class="eyebrow">Data</span>
         {#if dataset.ready}<span class="pane__stat num">{num.format(dataset.rowCount)} rows</span>{/if}
       </div>
-      <FieldPanel meta={dataset.meta} onFormat={openFormatForField} onChangeType={changeType} />
+      <FieldPanel meta={dataset.meta} onFormat={openFormatForField} onChangeType={changeType} onChangeGeoRole={changeGeoRole} />
     </aside>
 
     <section class="pane pane--shelves card" aria-label="Shelves">
@@ -265,6 +309,18 @@
         <button type="button" class="btn" onclick={() => ui.openDialog({ kind: 'palette' })} disabled={!dataset.ready || !hasColor} title={hasColor ? 'Color palette' : 'Drop a field on Color first'}>
           <Icon name="color" /> Palette
         </button>
+        <button
+          type="button"
+          class="btn"
+          class:active={formatMenu !== null}
+          aria-haspopup="menu"
+          aria-expanded={formatMenu !== null}
+          disabled={!dataset.ready}
+          title="Format: style, axes, reference lines, trend line, annotations"
+          onclick={(e) => { formatMenu = formatMenu ? null : e.currentTarget; }}
+        >
+          Format <Icon name="chevron-down" />
+        </button>
       </div>
 
       <div class="chart-body">
@@ -290,6 +346,8 @@
               isMobile={ui.isMobile}
               busy={query.pending}
               {raw}
+              {onMarkClick}
+              {onAnnotationDrag}
             />
           {/if}
         </div>
@@ -318,7 +376,7 @@
 
   {#if ui.isMobile}
     <BottomSheet open={ui.sheet === 'fields'} title="Data" onClose={() => { ui.sheet = 'none'; }}>
-      <FieldPanel meta={dataset.meta} onFormat={openFormatForField} onChangeType={changeType} />
+      <FieldPanel meta={dataset.meta} onFormat={openFormatForField} onChangeType={changeType} onChangeGeoRole={changeGeoRole} />
     </BottomSheet>
     <BottomSheet open={ui.sheet === 'shelves'} title="Shelves" onClose={() => { ui.sheet = 'none'; }}>
       <ShelfPanel meta={dataset.meta} showMarks={false} onFormat={openFormatForPill} onFilter={openFilter} />
@@ -328,6 +386,14 @@
       <button type="button" class="btn sheet-action" onclick={() => ui.openDialog({ kind: 'palette' })} disabled={!hasColor}>
         <Icon name="color" /> Color palette…
       </button>
+      <div class="sheet-format" role="group" aria-label="Format">
+        <span class="eyebrow">Format</span>
+        {#each formatEntries as e (e.id)}
+          <button type="button" class="btn sheet-action sheet-action--row" data-format={e.id} disabled={e.disabled} onclick={() => { ui.sheet = 'none'; e.open(); }}>
+            <span>{e.label}</span>{#if e.hint}<span class="sheet-action__hint">{e.hint}</span>{/if}
+          </button>
+        {/each}
+      </div>
     </BottomSheet>
     <BottomSheet open={ui.sheet === 'chart'} title="Chart type" onClose={() => { ui.sheet = 'none'; }}>
       <ChartPicker meta={dataset.meta} />
@@ -339,6 +405,19 @@
   <FormatDialog open={ui.dialog?.kind === 'format'} target={ui.dialog?.kind === 'format' ? ui.dialog.target : null} onclose={closeDialog} />
   <FilterDialog open={ui.dialog?.kind === 'filter'} pillId={ui.dialog?.kind === 'filter' ? ui.dialog.pillId : null} onclose={closeDialog} />
   <PaletteDialog open={ui.dialog?.kind === 'palette'} onclose={closeDialog} />
+  <StylePanel open={ui.dialog?.kind === 'style'} onclose={closeDialog} />
+  <AxisDialog open={ui.dialog?.kind === 'axis'} which={ui.dialog?.kind === 'axis' ? ui.dialog.which : null} onclose={closeDialog} />
+  <ReferenceLineDialog open={ui.dialog?.kind === 'reference'} onclose={closeDialog} />
+  <TrendLineDialog open={ui.dialog?.kind === 'trend'} onclose={closeDialog} />
+  <AnnotationEditor
+    open={ui.dialog?.kind === 'annotation'}
+    pending={annotationTarget?.kind === 'pending' ? annotationTarget.anchor : null}
+    editId={annotationTarget?.kind === 'edit' ? annotationTarget.id : null}
+    onclose={closeDialog}
+  />
+  {#if formatMenu}
+    <Menu anchor={formatMenu} sections={formatSections} title="Format" onClose={() => { formatMenu = null; }} />
+  {/if}
   <Toast />
 </div>
 
@@ -398,6 +477,10 @@
   }
 
   .sheet-action { margin-top: var(--space-md); width: 100%; justify-content: center; min-height: var(--touch-target); }
+  .sheet-format { display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-lg); }
+  .sheet-format .eyebrow { margin-bottom: var(--space-xs); }
+  .sheet-action--row { margin-top: 0; justify-content: space-between; }
+  .sheet-action__hint { font-size: 0.72rem; color: var(--text-muted); }
 
   @media (max-width: 900px) {
     .chart-head { gap: var(--space-xs); }

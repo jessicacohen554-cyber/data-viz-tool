@@ -402,3 +402,97 @@ continuous pills **C**, plus per-shelf constraints. The chart picker:
 | One filter per field | several allowed (context, condition, top) | one `FilterSpec` per field | simpler UI; Top N is its own kind |
 | Boolean inference | `TRUE`/`FALSE` plus locale words | `true/false/t/f/yes/no/y/n` | §1.2 |
 | Sort | pane-relative options | whole-data sort by field | §6.1 |
+
+## 11. Formatting UI v2 (T4; D-16, D-19)
+
+The v2 contract fields `style`, `axes.*`, `referenceLines`, `trendLine`,
+`annotations`, `Pill.axis` and `axes.synchronized` are edited by six
+components under `src/lib/ui/dialogs/` plus the pill menu. Every control
+writes the spec at once through `spec.patch` (one undo step per committed
+change; text fields and sliders commit on change, never per keystroke). Each
+component takes `open` + `onclose` and is hosted by `App.svelte`; the dialog
+kinds are registered in `ui.svelte.ts` (`style`, `axis`, `reference`,
+`trend`, `annotation`).
+
+### 11.1 Style panel (`StylePanel.svelte`) — Tableau's Format pane
+
+| Control | Writes | Notes |
+|---|---|---|
+| Font family (`FontPicker`) | `style.fontFamily` | `FONT_FAMILIES` grouped sans / serif / mono, each option in its own face once the Google Fonts stylesheet has loaded (D-14); system fallback offline |
+| Scale slider 0.5–2 | `style.fontScale` | multiplies every size below |
+| Sizes (title, subtitle, caption, axis ticks, axis titles, mark labels, legend), 6–72 px | `style.{title,subtitle,caption,axis,labels,legend}.size`, `style.axis.titleSize` | |
+| Title text / weight / align, subtitle text, caption text | `style.title.{text,weight,align}`, `style.subtitle.text`, `style.caption.text` | an empty text removes the key; the chart shows `style.title.text` when set, else `VizSpec.title` (the worksheet title in the top bar) |
+| Background swatches + custom hex | `style.background` | swatches are `transparent` plus the current color encoding's hues; hex is `#rgb` / `#rrggbb` |
+| Border, padding 0–96 px | `style.border`, `style.padding` | |
+| Legend show / position | `legend.show`, `legend.position` | |
+| Mark labels show / position, opacity | `marks.labels`, `marks.opacity` | |
+| Reset to defaults | all of the above | `defaultStyle()`, legend right, labels off, opacity 1 |
+
+Desktop: a right-side non-modal panel (the chart stays live); phone: a
+bottom sheet (D-11). Deviation from Tableau: one panel for sheet, pane and
+axis fonts rather than Tableau's per-area tabs; per-axis options live in
+the Axis dialog instead.
+
+### 11.2 Axis dialog (`AxisDialog.svelte`) — Edit Axis + Format Axis
+
+Per axis `x` / `y` / `y2`:
+
+| Control | Writes |
+|---|---|
+| Title: Automatic / Custom / None | `axes[a].title` = `undefined` / string / `null` |
+| Range: Automatic / Fixed with min, max (an empty bound = `'auto'`) | `axes[a].min`, `axes[a].max` |
+| Logarithmic, Reversed, Show axis, Gridlines | `axes[a].log`, `.reversed`, `.showAxis`, `.gridlines` |
+| Tick numbers (Automatic / Number / Currency / Percent / Scientific with the §7.1 options) | `axes[a].tickFormat` (removed when automatic) |
+| Synchronize dual axes (y / y2 only; enabled when a pill sits on the secondary axis or the chart is `combo`) | `axes.synchronized` |
+| Mark on this axis: bar / line / area (y / y2 on a `combo` chart) | `marks.markByAxis[primary\|secondary]` |
+
+Tick formats offer the number kinds only (an axis is continuous); the
+`custom` format string stays in the Format dialog.
+
+### 11.3 Quick number presets (pill menu ▸ Number format)
+
+On a numeric measure pill: Automatic · Number · Currency · Percent ·
+Units none / K / M / B · 0 / 1 / 2 decimals. A kind preset replaces the
+kind (Currency seeds `USD`; Percent drops units); a units or decimals
+preset merges into the current format, promoting `automatic` to `number`
+so the option applies. Each writes `Pill.format` (the pill override of
+§7); Automatic removes it so the field default applies again.
+
+### 11.4 Reference lines (`ReferenceLineDialog.svelte`)
+
+A list of `referenceLines` with add / edit / remove. Per line: axis (`y`,
+`x`, `y2` when a secondary axis exists), kind (`REFERENCE_LINE_KINDS`:
+constant · average · median · min · max · percentile · band), value
+(constant) or percentile 0–100, band from (`min` / `p25` / `average` /
+`median` / constant) and to (`max` / `p75` / `average` / `median` /
+constant), label, color (automatic = the series color), dashed, scope
+(whole chart / per color series). A new line is an average on `y`,
+dashed, whole chart (Tableau's default). Deviation: Tableau's
+distribution bands (standard deviation, confidence) are not offered; the
+contract's `band` is percentile / statistic / constant edges only.
+
+### 11.5 Trend line (`TrendLineDialog.svelte`)
+
+`trendLine.enabled`, `.model` (`TREND_MODELS`: linear · log · exp · poly),
+`.degree` 2–5 (poly only; removed for other models), `.perSeries`,
+`.showEquation` (equation and R²), `.color` (automatic = series color).
+
+### 11.6 Annotations (`AnnotationEditor.svelte`)
+
+Opened from a mark click on the chart with a pending anchor
+`{ x, y?, seriesKey? }` (the `annotation` dialog kind, `pending` target):
+the note text is written as a new `Annotation` with the default offset
+`[12, -24]` px. Opened on an existing id (`edit` target): edit the text,
+nudge `offset` x / y (±400 px), delete. The list panel reopens any
+annotation. Deviation: Tableau's point / mark / area annotation shapes
+collapse to one text box pinned to a mark.
+
+### 11.7 Dual axis (pill menu; D-19)
+
+On a measure pill that shares `rows` or `columns` with at least one other
+aggregated measure (bins and date pills do not count): **Dual axis**
+toggles `Pill.axis` between `primary` (key absent) and `secondary`;
+**Synchronize axis** (shown once a pill is secondary) toggles
+`axes.synchronized`; on a `combo` chart **Mark type** sets the bar / line /
+area mark of the pill's axis (`marks.markByAxis`). The Axis dialog edits
+`y2` like `y`. This supersedes the "Dual axis: not shipped" row of §10.

@@ -14,13 +14,35 @@ export interface Toast { id: number; kind: ToastKind; message: string }
 /** What the Format dialog edits (structurally `FormatTarget` in `FormatDialog.svelte`; stores never import components). */
 export type FormatDialogTarget = { kind: 'pill'; pillId: string } | { kind: 'field'; field: string };
 
+/** Which axis an Axis dialog edits (`VizSpec.axes.x` / `.y` / `.y2`). */
+export type AxisId = 'x' | 'y' | 'y2';
+
+/**
+ * A mark the user clicked, awaiting annotation text (T4). `x` is the category
+ * label or numeric/epoch x of the mark; `y` and `seriesKey` when known.
+ * Structurally `Annotation` minus `id`, `text` and `offset`.
+ */
+export interface AnnotationAnchor { x: string | number; y?: number; seriesKey?: string }
+
+/**
+ * What the Annotation editor opens on: an existing annotation by id, or a
+ * pending anchor from `ChartCanvas`'s mark click; `null` opens the list only.
+ */
+export type AnnotationDialogTarget = { kind: 'edit'; id: string } | { kind: 'pending'; anchor: AnnotationAnchor } | null;
+
 /** The open dialog, hosted by `App.svelte`; `null` when none is open. */
 export type DialogState =
   | { kind: 'dataset' }
   | { kind: 'views' }
   | { kind: 'palette' }
   | { kind: 'format'; target: FormatDialogTarget }
-  | { kind: 'filter'; pillId: string };
+  | { kind: 'filter'; pillId: string }
+  // v2 formatting UI (T4): the style panel, per-axis options, reference and trend lines, annotations.
+  | { kind: 'style' }
+  | { kind: 'axis'; which: AxisId }
+  | { kind: 'reference' }
+  | { kind: 'trend' }
+  | { kind: 'annotation'; target: AnnotationDialogTarget };
 
 /** Toast lifetime. */
 export const TOAST_MS = 4000;

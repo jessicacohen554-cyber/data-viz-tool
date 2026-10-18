@@ -1,17 +1,29 @@
 /**
  * Tableau-style type inference over a sample of raw CSV cells (shard S1).
  *
- * Owns `isNullToken`, `inferType` (one column) and `inferAll` (a header plus
- * sample rows → `FieldMeta[]` skeletons). Rules are docs/TABLEAU-SPEC.md §1.2:
- * null tokens are stripped first; a type wins only when every sampled non-null
- * value parses; order boolean → integer → number → date/datetime → string.
- * Counts in the returned `FieldMeta` describe the sample only; the column
- * store overwrites them with full-file numbers at build time.
+ * Owns `isNullToken`, `inferType` (one column), `inferGeoRole` (v2, D-13) and
+ * `inferAll` (a header plus sample rows → `FieldMeta[]` skeletons). Rules are
+ * docs/TABLEAU-SPEC.md §1.2: null tokens are stripped first; a type wins only
+ * when every sampled non-null value parses; order boolean → integer → number →
+ * date/datetime → string. Counts in the returned `FieldMeta` describe the
+ * sample only; the column store overwrites them with full-file numbers at
+ * build time.
+ *
+ * Geographic roles come from the header name and the sampled values together
+ * (`inferGeoRole`): a string column takes the area role (`us-state`,
+ * `country`, `us-county`, `ercot-zone`) that at least `GEO_MATCH_SHARE` of its
+ * sampled non-null values match in `geo-names.ts`, the header deciding ties;
+ * a numeric column is `latitude` / `longitude` only when its header says so
+ * and the values sit in range. `typeOverrides[field].geoRole` is applied by
+ * the loader afterwards (null clears).
  *
  * Must not import svelte or DOM (R-PURE); may import `lib/core` and siblings.
  */
-import type { Aggregation, Continuity, DataType, FieldMeta, Role, Storage } from '../core/types';
+import type { Aggregation, Continuity, DataType, FieldMeta, GeoRole, Role, Storage } from '../core/types';
 import { detectDateFormat } from './date-parse';
+import {
+  COMPASS_WORDS, isLatitude, isLongitude, matchCountry, matchErcotZone, matchUsCounty, matchUsState, normalizeGeoKey,
+} from './geo-names';
 
 /** Null tokens, lower-cased (§1.2): the empty cell plus common export sentinels. */
 const NULL_TOKENS: ReadonlySet<string> = new Set(['', 'null', 'na', 'n/a', 'nan', '#n/a']);
@@ -92,6 +104,102 @@ export function inferType(samples: readonly string[]): InferredType {
   return { type: 'string', storage: 'dict', ...base };
 }
 
+// ---------------------------------------------------------------------------
+// Geographic roles (v2, D-13)
+// ---------------------------------------------------------------------------
+
+/** Share of sampled non-null values that must match a geo table for the role to be assigned. */
+export const GEO_MATCH_SHARE = 0.8;
+
+/** Header tokens (lower-cased, split on non-alphanumerics and camelCase) that hint a role. */
+const HEADER_HINTS: ReadonlyArray<[tokens: readonly string[], role: GeoRole]> = [
+  [['state', 'st', 'states', 'statecode'], 'us-state'],
+  [['country', 'countries', 'iso', 'iso2', 'iso3', 'alpha2', 'alpha3', 'nation', 'cntry', 'countrycode'], 'country'],
+  [['county', 'counties', 'fips', 'countyfips'], 'us-county'],
+  [['zone', 'zones', 'weatherzone', 'loadzone', 'ercotzone'], 'ercot-zone'],
+  [['lat', 'lats', 'latitude'], 'latitude'],
+  [['lon', 'lng', 'long', 'longitude'], 'longitude'],
+];
+
+/** Roles in tie-break order when several tables match equally and the header is silent. */
+const ROLE_PRIORITY: readonly GeoRole[] = ['us-state', 'ercot-zone', 'country', 'us-county'];
+
+/** Numeric types whose columns can carry a coordinate role. */
+const NUMERIC_TYPES: ReadonlySet<DataType> = new Set<DataType>(['integer', 'number']);
+
+/** Role hinted by a column header, or null. `State`, `state_code`, `weather_zone`, `Lat`, `lonDeg` all hint. */
+export function headerGeoHint(name: string): GeoRole | null {
+  const spaced = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  const tokens = spaced.split(/[^a-z0-9]+/).filter((t) => t.length > 0);
+  const joined = tokens.join('');
+  for (const [hints, role] of HEADER_HINTS) {
+    for (const t of tokens) if (hints.includes(t)) return role;
+    if (hints.includes(joined)) return role;
+  }
+  return null;
+}
+
+/**
+ * Infer the geographic role of one column from its header and sampled non-null
+ * values (already trimmed). `type` is the column's data type: numeric columns
+ * can only be `latitude` / `longitude` (header hint + ≥ `GEO_MATCH_SHARE` of
+ * values in range, or FIPS integers under a county header); every other type
+ * is matched against the state / country / county / zone tables. An ERCOT zone
+ * column whose header does not say so must contain a non-compass spelling
+ * (`Houston`, `Panhandle`, `South Central`, `COAST`, …), and bare 5-digit FIPS
+ * strings count as counties only under a county / FIPS header. Returns null
+ * when nothing reaches the share.
+ */
+export function inferGeoRole(name: string, values: readonly string[], type: DataType): GeoRole | null {
+  const n = values.length;
+  if (n === 0) return null;
+  const hint = headerGeoHint(name);
+  const need = Math.ceil(n * GEO_MATCH_SHARE);
+
+  if (NUMERIC_TYPES.has(type)) {
+    if (hint === 'latitude' || hint === 'longitude') {
+      const inRange = hint === 'latitude' ? isLatitude : isLongitude;
+      let ok = 0;
+      for (const v of values) if (inRange(Number(v))) ok++;
+      return ok >= need ? hint : null;
+    }
+    if (hint === 'us-county') {
+      let ok = 0;
+      for (const v of values) { const x = Number(v); if (Number.isInteger(x) && matchUsCounty(String(x).padStart(5, '0'), true)) ok++; }
+      return ok >= need ? 'us-county' : null;
+    }
+    return null;
+  }
+  if (type !== 'string') return null;
+
+  const allowFips = hint === 'us-county';
+  const cache = new Map<string, number>(); // bitmask: 1 state, 2 country, 4 zone, 8 county
+  let state = 0, country = 0, zone = 0, county = 0, distinctiveZone = false;
+  for (const v of values) {
+    let bits = cache.get(v);
+    if (bits === undefined) {
+      bits = 0;
+      if (matchUsState(v)) bits |= 1;
+      if (matchCountry(v)) bits |= 2;
+      if (matchErcotZone(v)) { bits |= 4; if (!COMPASS_WORDS.has(normalizeGeoKey(v))) distinctiveZone = true; }
+      if (matchUsCounty(v, allowFips)) bits |= 8;
+      cache.set(v, bits);
+    }
+    if (bits & 1) state++;
+    if (bits & 2) country++;
+    if (bits & 4) zone++;
+    if (bits & 8) county++;
+  }
+  const scores: Partial<Record<GeoRole, number>> = { 'us-state': state, country, 'ercot-zone': zone, 'us-county': county };
+  if (!(hint === 'ercot-zone' || distinctiveZone)) scores['ercot-zone'] = 0;
+  const candidates = ROLE_PRIORITY.filter((r) => (scores[r] ?? 0) >= need);
+  if (candidates.length === 0) return null;
+  if (hint && candidates.includes(hint)) return hint;
+  let best = candidates[0]!;
+  for (const r of candidates) if ((scores[r] ?? 0) > (scores[best] ?? 0)) best = r;
+  return best;
+}
+
 /** Default role / continuity / aggregation per type (§2). */
 export function defaultsFor(type: DataType): { role: Role; defaultContinuity: Continuity; defaultAggregation: Aggregation } {
   if (type === 'integer' || type === 'number') return { role: 'measure', defaultContinuity: 'continuous', defaultAggregation: 'sum' };
@@ -121,11 +229,19 @@ export function uniqueHeader(header: readonly string[]): string[] {
   });
 }
 
+/** Trimmed non-null cells of a sample column. */
+export function nonNullValues(samples: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const raw of samples) if (!isNullToken(raw)) out.push(raw.trim());
+  return out;
+}
+
 /**
  * Infer every column of a sample. `sampleRows[r][c]` is the raw cell (missing cells
  * are nulls). Returns `FieldMeta` skeletons with sample-based counts; `rowCount`,
  * `nullCount`, `cardinality`, `min`, `max`, `topValues`, `parseErrors` are finalised
- * by the column store once the whole file is built.
+ * by the column store once the whole file is built. `geoRole` is inferred here
+ * (`inferGeoRole`) and may be overridden by the loader.
  */
 export function inferAll(header: readonly string[], sampleRows: readonly (readonly string[])[]): FieldMeta[] {
   const names = uniqueHeader(header);
@@ -143,6 +259,7 @@ export function inferAll(header: readonly string[], sampleRows: readonly (readon
       min: null, max: null, topValues: [],
       dateFormat: inf.dateFormat, dateAmbiguous: inf.dateAmbiguous,
       parseErrors: 0, confidence: inf.confidence,
+      geoRole: inferGeoRole(name, nonNullValues(column), inf.type),
     };
   });
 }

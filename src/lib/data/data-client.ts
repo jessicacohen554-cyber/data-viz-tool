@@ -16,14 +16,18 @@
  * Must not import svelte or DOM beyond the `Worker` constructor (R-PURE; the
  * boundary test forbids `document`/`window`, not `Worker`).
  */
-import type { DatasetEntry, DataType, FieldMeta, FieldProfile, FilterSpec, LoadProgress, QueryPlan, QueryResult } from '../core/types';
+import type { DatasetEntry, DataType, FieldMeta, FieldProfile, FilterSpec, GeoRole, LoadProgress, QueryPlan, QueryResult } from '../core/types';
 import { RESULT_CACHE_SIZE } from '../core/constants';
 import { queryKey } from '../core/query-of';
 import type { WorkerReply, WorkerRequest } from './protocol';
 
-/** Options of `DataClient.load` (mirrors `LoadRequest`; `keepRaw` defaults to true, `maxRows` to no cap). */
+/**
+ * Options of `DataClient.load` (mirrors `LoadRequest`; `keepRaw` defaults to true, `maxRows` to no cap).
+ * `typeOverrides[field].geoRole` (v2) rides along to the worker although `LoadRequest` does not name it:
+ * structured clone keeps the property and the loader reads it.
+ */
 export interface LoadOptions {
-  typeOverrides?: Record<string, { type?: DataType; role?: 'dimension' | 'measure'; dateFormat?: string }>;
+  typeOverrides?: Record<string, { type?: DataType; role?: 'dimension' | 'measure'; dateFormat?: string; geoRole?: GeoRole | null }>;
   keepRaw?: boolean;
   maxRows?: number;
   onProgress?: (p: LoadProgress) => void;

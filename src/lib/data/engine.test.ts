@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Aggregation, FilterSpec, QueryDim, QueryMeasure, QueryPlan, QueryResult } from '../core/types';
-import { AGGREGATIONS } from '../core/constants';
+import { AGGREGATIONS, PERCENTILE_LEVEL } from '../core/constants';
 import { queryKey } from '../core/query-of';
 import { loadFixture, loadTable, rng } from '../../../tests/fixtures/load';
 import { labelAt, type ColumnStore } from './column-store';
@@ -44,6 +44,12 @@ function refAgg(values: number[], agg: Aggregation): number {
     case 'min': return Math.min(...values);
     case 'max': return Math.max(...values);
     case 'median': { const s = [...values].sort((a, b) => a - b); return n % 2 ? s[(n - 1) / 2]! : (s[n / 2 - 1]! + s[n / 2]!) / 2; }
+    case 'p05': case 'p10': case 'p25': case 'p75': case 'p90': case 'p95': {
+      // Type 7: rank (n − 1)·p, linear interpolation between neighbours.
+      const s = [...values].sort((a, b) => a - b);
+      const pos = (n - 1) * (PERCENTILE_LEVEL[agg]! / 100), lo = Math.floor(pos);
+      return s[lo]! + (pos - lo) * ((s[lo + 1] ?? s[lo]!) - s[lo]!);
+    }
     case 'var': case 'stdev': {
       if (n < 2) return NaN;
       const mean = sum / n;
@@ -310,6 +316,55 @@ describe('sort, limit, disaggregate, boxstats', () => {
       expect(bs.hi[j]).toBe(inside.at(-1));
       expect(bs.outliers[j]!.length).toBe(vals.length - inside.length);
     }
+  });
+
+  it('percentiles on small groups: one value is every percentile, two values interpolate', async () => {
+    const { store } = await loadTable(['k', 'v'], [['one', '7'], ['two', '10'], ['two', '20'], ['three', '1'], ['three', '2'], ['three', '3']]);
+    const p = plan([{ key: 'k', field: 'k' }], ['p05', 'p10', 'p25', 'median', 'p75', 'p90', 'p95'].map((a) => ({ key: a, field: 'v', aggregation: a as Aggregation })));
+    const res = runQuery(store, p);
+    const row = (label: string) => res.measures.map((m) => m.values[res.dims[0]!.labels!.indexOf(label)]!);
+    expect(row('one')).toEqual([7, 7, 7, 7, 7, 7, 7]);
+    row('two').forEach((v, i) => expect(v).toBeCloseTo([10.5, 11, 12.5, 15, 17.5, 19, 19.5][i]!, 12));
+    row('three').forEach((v, i) => expect(v).toBeCloseTo([1.1, 1.2, 1.5, 2, 2.5, 2.8, 2.9][i]!, 12));
+  });
+
+  it('bands: one vector per level equal to the per-group percentiles, NaN for an empty group', async () => {
+    const levels = [5, 10, 25, 50, 75, 90, 95];
+    const aggs: Aggregation[] = ['p05', 'p10', 'p25', 'median', 'p75', 'p90', 'p95'];
+    const p = plan([{ key: 'a', field: 'cat' }], [{ key: 'm', field: 'v1', aggregation: 'avg' }, ...aggs.map((a) => ({ key: a, field: 'v1', aggregation: a }))], { bands: { measureKey: 'm', levels } });
+    const res = runQuery(syn, p);
+    expect(res.bands).toHaveLength(levels.length);
+    res.bands!.forEach((band, k) => {
+      expect(band).toBeInstanceOf(Float64Array);
+      expect(band.length).toBe(res.groups);
+      const viaAgg = res.measures[k + 1]!.values;
+      for (let j = 0; j < res.groups; j++) expect(band[j], `level ${levels[k]} group ${j}`).toBe(viaAgg[j]);
+    });
+    // Reference: brute-force type-7 per group on the raw values.
+    const ref = reference(syn, plan([{ key: 'a', field: 'cat' }], aggs.map((a) => ({ key: a, field: 'v1', aggregation: a }))));
+    for (let j = 0; j < res.groups; j++) {
+      const label = res.dims[0]!.labels![res.dims[0]!.codes![j]!]!;
+      ref.get(label)!.forEach((e, k) => expect(res.bands![k]![j]!).toBeCloseTo(e, 9));
+    }
+
+    const { store } = await loadTable(['k', 'v'], [['a', '1'], ['a', '3'], ['b', ''], ['b', 'NULL']]);
+    const small = runQuery(store, plan([{ key: 'k', field: 'k' }], [{ key: 'm', field: 'v', aggregation: 'sum' }], { bands: { measureKey: 'm', levels: [25, 75] } }));
+    expect(small.dims[0]!.labels).toEqual(['a', 'b']);
+    expect(Array.from(small.bands![0]!)).toEqual([1.5, NaN]);
+    expect(Array.from(small.bands![1]!)).toEqual([2.5, NaN]);
+  });
+
+  it('bands follow sort and limit, and are absent for an unknown measure key', () => {
+    const base = plan([{ key: 'n', field: 'v2' }], [{ key: 'm', field: 'v1', aggregation: 'p25' }], { bands: { measureKey: 'm', levels: [25] }, sort: { dimKey: 'n', by: 'value', measureKey: 'm', dir: 'desc' } });
+    const full = runQuery(syn, { ...base, limit: 50_000 });
+    expect(full.groups).toBe(1001);
+    for (let j = 0; j < full.groups; j++) expect(full.bands![0]![j]).toBe(full.measures[0]!.values[j]);
+    const cut = runQuery(syn, { ...base, limit: 10 });
+    expect(cut.truncated).toBe(true);
+    expect(cut.bands![0]!.length).toBe(10);
+    for (let j = 0; j < 10; j++) expect(cut.bands![0]![j]).toBe(cut.measures[0]!.values[j]);
+    expect(runQuery(syn, { ...base, bands: { measureKey: 'ghost', levels: [50] } }).bands).toBeUndefined();
+    expect(runQuery(syn, plan([{ key: 'a', field: 'cat' }], [{ key: 'm', field: 'v1', aggregation: 'sum' }])).bands).toBeUndefined();
   });
 
   it('zero dimensions is one group (KPI)', () => {

@@ -29,6 +29,7 @@ on:
 
 permissions:
   contents: write
+  actions: write  # to dispatch deploy-pages.yml after the dist commit
 
 # One rebuild at a time, in order; a queued rebuild sees the previous commit.
 concurrency:
@@ -53,6 +54,8 @@ jobs:
       - name: Build
         run: npm run build
       - name: Commit dist/ if it changed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ -n "$(git status --porcelain dist)" ]; then
@@ -61,6 +64,11 @@ jobs:
             git add dist
             git commit -m "Rebuild dist [skip ci]"
             git push origin HEAD:main
+            # A GITHUB_TOKEN push starts no workflows, but it DOES start GitHub's
+            # branch-source Pages build when the Pages source is still a branch;
+            # that build would overwrite the last Actions deploy. Dispatch the
+            # deploy workflow so it runs (and waits to land) after that build.
+            gh workflow run deploy-pages.yml --ref main || echo "dispatch failed (non-fatal)"
           else
             echo "dist/ already current — nothing to commit"
           fi

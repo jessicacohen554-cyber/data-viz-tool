@@ -35,6 +35,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read   # to watch GitHub's own "pages build and deployment" run (see the wait step)
 
 # One publish at a time; never cancel an in-flight publish (an interrupted
 # Pages deploy can leave the live site partially broken).
@@ -72,6 +73,29 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Wait for GitHub's branch build so this deploy lands last
+        # While the repository's Pages source is still "Deploy from a branch",
+        # every push to main also starts GitHub's own "pages build and deployment"
+        # run, which publishes the raw repo root and would overwrite this deploy
+        # a minute later (the page then loads but assets/index.js is 404). This
+        # step waits until that run for the same commit has finished so the
+        # artifact below is the last thing published. It is a no-op once the
+        # Pages source is switched to "GitHub Actions" (Settings → Pages), which
+        # is the durable fix.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 36); do
+            state=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=50" \
+              --jq ".workflow_runs[] | select(.name == \"pages build and deployment\" and .head_sha == \"${GITHUB_SHA}\") | .status" \
+              | head -n1 || true)
+            echo "branch build for ${GITHUB_SHA:0:7}: ${state:-not started} (${i}/36)"
+            if [ "$state" = "completed" ]; then exit 0; fi
+            if [ -z "$state" ] && [ "$i" -ge 12 ]; then echo "no branch build after 2 min — Pages source is Actions; continuing"; exit 0; fi
+            sleep 10
+          done
+          echo "branch build still running after 6 min — continuing"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

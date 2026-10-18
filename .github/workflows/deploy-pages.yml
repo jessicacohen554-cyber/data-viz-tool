@@ -17,17 +17,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "public/**"
-      - "data/**"
-      - "index.html"
-      - "package*.json"
-      - "vite.config.ts"
-      - "tsconfig.json"
-      - "svelte.config.js"
-      - "scripts/build_manifest.py"
-      - ".github/workflows/deploy-pages.yml"
+    # Every push, not only build inputs: while the Pages source is a branch,
+    # GitHub's own branch build runs on EVERY push (a docs-only commit included)
+    # and would leave the raw repo root published; this deploy must follow it.
   # Manual trigger (Actions tab → this workflow → "Run workflow").
   workflow_dispatch: {}
 

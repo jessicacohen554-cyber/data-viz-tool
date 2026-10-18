@@ -1,0 +1,1 @@
+import{t as e}from"./__vite-browser-external2.js";export default e();

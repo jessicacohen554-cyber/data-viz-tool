@@ -135,8 +135,10 @@
     });
   }
 
+  /** Switch the tick kind; Automatic drops every option so the axis is back to the default. */
   function setTickKind(kind: FormatSpec['kind']): void {
     patchTick((f) => {
+      if (kind === 'automatic') { for (const k of Object.keys(f)) delete f[k as keyof FormatSpec]; }
       f.kind = kind;
       if (kind === 'currency' && !f.currency) f.currency = 'USD';
     });

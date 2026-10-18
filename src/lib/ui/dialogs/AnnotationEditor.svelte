@@ -51,22 +51,30 @@
   let { open, onclose, pending, editId = null }: Props = $props();
 
   const annotations = $derived(spec.value.annotations);
-  let selectedId = $state<string | null>(null);
-  const editing = $derived(annotations.find((a) => a.id === selectedId) ?? null);
-  let draft = $state('');
 
-  // Seed the editor whenever it opens on a (new) target.
+  /**
+   * Selection and draft follow the props until the user acts: `selOverride`
+   * (undefined = follow `editId`) and `draftOverride` (null = the selected
+   * annotation's text). The reset effect reads only the props, so a spec
+   * write never re-seeds the editor mid-edit.
+   */
+  let selOverride = $state<string | null | undefined>(undefined);
+  let draftOverride = $state<string | null>(null);
   $effect(() => {
-    if (!open) return;
-    selectedId = editId;
-    draft = editId ? (spec.value.annotations.find((a) => a.id === editId)?.text ?? '') : '';
+    void open; void editId;
+    selOverride = undefined;
+    draftOverride = null;
   });
+
+  const selectedId = $derived(selOverride === undefined ? editId : selOverride);
+  const editing = $derived(annotations.find((a) => a.id === selectedId) ?? null);
+  const draft = $derived(draftOverride ?? editing?.text ?? '');
 
   function add(): void {
     if (!pending || !draft.trim()) return;
     const a = newAnnotation(pending, draft);
     spec.patch((d) => { d.annotations.push(a); });
-    draft = '';
+    draftOverride = null;
     onclose();
   }
 
@@ -75,16 +83,17 @@
     const text = draft.trim();
     if (!id || !text) return;
     spec.patch((d) => { const a = d.annotations.find((x) => x.id === id); if (a) a.text = text; });
+    draftOverride = null;
   }
 
   function remove(id: string): void {
     spec.patch((d) => { d.annotations = d.annotations.filter((x) => x.id !== id); });
-    if (selectedId === id) { selectedId = null; draft = ''; }
+    if (selectedId === id) { selOverride = null; draftOverride = null; }
   }
 
   function select(id: string): void {
-    selectedId = id;
-    draft = annotations.find((a) => a.id === id)?.text ?? '';
+    selOverride = id;
+    draftOverride = null;
   }
 
   function setOffset(i: 0 | 1, raw: string): void {
@@ -114,10 +123,10 @@
 
   {#if pending && !editing}
     <p class="muted">Pinned to <span class="num">{describeAnchor(pending)}</span>.</p>
-    <textarea class="text" aria-label="Annotation text" rows="3" placeholder="Note…" bind:value={draft} onkeydown={onkeydown}></textarea>
+    <textarea class="text" aria-label="Annotation text" rows="3" placeholder="Note…" value={draft} oninput={(e) => { draftOverride = e.currentTarget.value; }} onkeydown={onkeydown}></textarea>
   {:else if editing}
     <p class="muted">Pinned to <span class="num">{describeAnchor(editing)}</span>.</p>
-    <textarea class="text" aria-label="Annotation text" rows="3" bind:value={draft} onkeydown={onkeydown} onchange={saveText}></textarea>
+    <textarea class="text" aria-label="Annotation text" rows="3" value={draft} oninput={(e) => { draftOverride = e.currentTarget.value; }} onkeydown={onkeydown} onchange={saveText}></textarea>
     <div class="inline">
       <label class="row"><span>Offset x</span><input type="number" class="num" min={OFFSET.min} max={OFFSET.max} step="1" aria-label="Offset x" value={editing.offset[0]} onchange={(e) => setOffset(0, e.currentTarget.value)} /></label>
       <label class="row"><span>Offset y</span><input type="number" class="num" min={OFFSET.min} max={OFFSET.max} step="1" aria-label="Offset y" value={editing.offset[1]} onchange={(e) => setOffset(1, e.currentTarget.value)} /></label>

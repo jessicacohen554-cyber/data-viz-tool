@@ -1,6 +1,6 @@
 /** Grouped bar (CHARTS.md #3): one series per color value, `barGap: '10%'`; a missing combination is a gap, never zero. */
 import type { ChartDef } from '../registry';
-import { cartesianBars, svgIcon } from '../option-common';
+import { DECORATION_MODULES, cartesianBars, svgIcon } from '../option-common';
 
 export const barGrouped: ChartDef = {
   id: 'bar-grouped',
@@ -10,6 +10,6 @@ export const barGrouped: ChartDef = {
   requires: { dims: [2, 3], measures: [1, 1], colorDim: true },
   channels: ['color', 'label', 'detail', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => cartesianBars(ctx, { stack: 'none' }),
 };

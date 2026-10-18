@@ -1,6 +1,6 @@
 /** Horizontal bar (CHARTS.md #2): M on Columns, D on Rows; long labels truncate with a full-name tooltip. */
 import type { ChartDef } from '../registry';
-import { cartesianBars, svgIcon } from '../option-common';
+import { DECORATION_MODULES, cartesianBars, svgIcon } from '../option-common';
 
 export const barH: ChartDef = {
   id: 'bar-h',
@@ -10,6 +10,6 @@ export const barH: ChartDef = {
   requires: { dims: [1, 3], measures: [1, 1] },
   channels: ['color', 'size', 'label', 'detail', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => cartesianBars(ctx, { horizontal: true }),
 };

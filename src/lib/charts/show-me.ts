@@ -10,6 +10,7 @@ import { CHART_TYPE_IDS } from '../core/constants';
 import { newId } from '../core/spec-defaults';
 import { CHART_TYPES, type Requirement } from './registry';
 import { classify, isContinuousPill, isDatePill, isDimPill, isMeasurePill } from './option-common';
+import { AREA_ROLES, explicitGeoRole, fallbackGeoRole } from './map-common';
 
 export interface Eligibility { id: ChartTypeId; ok: boolean; reason?: string }
 
@@ -40,10 +41,17 @@ export function eligibility(spec: VizSpec, meta: FieldMeta[]): Eligibility[] {
   });
 }
 
-/** Best chart for the current pills (bar → line if date → scatter if 2 measures → text-table). */
-export function suggest(spec: VizSpec, _meta: FieldMeta[]): ChartTypeId {
+/**
+ * Best chart for the current pills (filled map if a dimension carries an
+ * assigned area geo role → bar → line if date → scatter if 2 measures →
+ * text-table). Only an inferred or user-set geo role suggests a map; the
+ * name fallback never does.
+ */
+export function suggest(spec: VizSpec, meta: FieldMeta[]): ChartTypeId {
   const c = classify(spec);
   const axisPills = [...spec.shelves.columns, ...spec.shelves.rows];
+  const geoDim = c.dims.find((d) => { const r = explicitGeoRole(spec, meta, d.field); return r != null && AREA_ROLES.includes(r); });
+  if (geoDim && c.measures.length >= 1) return 'map-choropleth';
   if (c.dims.length >= 1 && c.measures.length >= 1) return 'bar';
   if (axisPills.some((p) => isDatePill(p) || (p.date?.mode === 'trunc')) && c.measures.length >= 1) return 'line';
   if (c.measures.length >= 2 && c.dims.length === 0) return 'scatter';
@@ -74,7 +82,21 @@ export function arrangeFor(draft: VizSpec, target: ChartTypeId): void {
     case 'bullet': put('columns', D1); put('rows', M1, M2); put('color', D2); break;
     case 'bar-h': put('rows', D1); put('columns', M1); put('color', D2); break;
     case 'bar-grouped': case 'bar-stacked': case 'bar-stacked-100': put('columns', D1); put('rows', M1); put('color', D2); break;
-    case 'line': case 'area': case 'bump': { const x = T ?? C; put('columns', x); put('rows', M1); put('color', Drest([x])[0]); break; }
+    case 'line': case 'area': case 'area-stacked': case 'area-100': case 'bump': { const x = T ?? C; put('columns', x); put('rows', M1); put('color', Drest([x])[0]); break; }
+    // Combo: every measure on Rows; the second and later default to the right axis unless the pill already says.
+    case 'combo': { const x = T ?? D1; put('columns', x); for (const m of M.slice(1)) m.axis ??= 'secondary'; put('rows', ...M); put('color', Drest([x])[0]); break; }
+    // Envelope: a date or continuous x; one measure (percentile mode) or low/high(/mid) (columns mode).
+    case 'envelope': { const x = T ?? D1; put('columns', x); put('rows', M1, M2, M3); break; }
+    case 'map-choropleth': {
+      const geo = D.find((d) => { const r = fallbackGeoRole(d.field); return r !== null && AREA_ROLES.includes(r); }) ?? D1;
+      put('columns', geo); put('color', M1); put('detail', ...Drest([geo])); break;
+    }
+    case 'map-symbol': {
+      const geo = D.find((d) => { const r = fallbackGeoRole(d.field); return r !== null && AREA_ROLES.includes(r); });
+      const lat = M.find((m) => fallbackGeoRole(m.field) === 'latitude'); const lon = M.find((m) => fallbackGeoRole(m.field) === 'longitude');
+      const rest = M.filter((m) => m !== lat && m !== lon);
+      put('columns', geo ?? lon); put('rows', lat); put('size', rest[0]); put('color', Drest([geo])[0]); put('detail', ...Drest([geo, Drest([geo])[0]])); break;
+    }
     case 'candlestick': { const x = T ?? C; put('columns', x); put('rows', M1, M2, M3, M4); put('color', Drest([x])[0]); break; }
     case 'streamgraph': put('columns', T); put('rows', M1); put('color', Drest([T])[0]); break;
     case 'scatter': put('columns', M1); put('rows', M2); put('color', D1); break;

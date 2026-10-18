@@ -3,7 +3,7 @@
  * are excluded from the denominator (`__meta.excludedNegatives` tells the canvas to toast).
  */
 import type { ChartDef } from '../registry';
-import { cartesianBars, cartesianPivot, svgIcon } from '../option-common';
+import { DECORATION_MODULES, cartesianBars, cartesianPivot, svgIcon } from '../option-common';
 import { percentStack } from '../transforms';
 
 export const barStacked100: ChartDef = {
@@ -14,7 +14,7 @@ export const barStacked100: ChartDef = {
   requires: { dims: [2, 3], measures: [1, 1], colorDim: true },
   channels: ['color', 'label', 'detail', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => {
     const { pivot } = cartesianPivot(ctx, false);
     const { pivot: pct, excludedNegatives } = percentStack(pivot);

@@ -1,6 +1,6 @@
 /** Bar (CHARTS.md #1): 1 D on Columns + 1 M on Rows; a color D pivots side-by-side. */
 import type { ChartDef } from '../registry';
-import { cartesianBars, svgIcon } from '../option-common';
+import { DECORATION_MODULES, cartesianBars, svgIcon } from '../option-common';
 
 export const bar: ChartDef = {
   id: 'bar',
@@ -10,6 +10,6 @@ export const bar: ChartDef = {
   requires: { dims: [1, 3], measures: [1, 1] },
   channels: ['color', 'size', 'label', 'detail', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => cartesianBars(ctx),
 };

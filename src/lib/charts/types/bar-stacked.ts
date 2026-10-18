@@ -1,6 +1,6 @@
 /** Stacked bar (CHARTS.md #4): stacking order is palette order, never re-sorted by value (rule R-PALETTE). */
 import type { ChartDef } from '../registry';
-import { cartesianBars, svgIcon } from '../option-common';
+import { DECORATION_MODULES, cartesianBars, svgIcon } from '../option-common';
 
 export const barStacked: ChartDef = {
   id: 'bar-stacked',
@@ -10,6 +10,6 @@ export const barStacked: ChartDef = {
   requires: { dims: [2, 3], measures: [1, 1], colorDim: true },
   channels: ['color', 'label', 'detail', 'tooltip'],
   renderer: 'echarts',
-  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', 'CanvasRenderer'],
+  echartsModules: ['BarChart', 'GridComponent', 'TooltipComponent', 'LegendComponent', ...DECORATION_MODULES, 'CanvasRenderer'],
   build: (ctx) => cartesianBars(ctx, { stack: 'stack' }),
 };

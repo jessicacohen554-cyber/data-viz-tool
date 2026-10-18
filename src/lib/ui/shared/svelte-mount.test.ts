@@ -1,17 +1,18 @@
 /**
- * Mount helper for the T4 dialog tests (jsdom). Vitest resolves the bare
- * `svelte` import to its server build (no `browser` resolve condition in
- * vite.config.ts), where `mount()` throws; the components themselves compile
- * for the DOM under the jsdom environment, so the client runtime is imported
- * by file path instead. The suite at the bottom checks the helper so the file
- * is a valid Vitest module (the `fake-client.test.ts` pattern).
+ * The one Svelte mount helper for component tests under jsdom (T4 and T5 each
+ * shipped a copy; T6 kept this one). Vitest resolves the bare `svelte` import
+ * to its server build (no `browser` resolve condition in vite.config.ts),
+ * where `mount()` throws; the components themselves compile for the DOM under
+ * the jsdom environment, so the client runtime is imported by file path
+ * instead. The suite at the bottom checks the helper so the file is a valid
+ * Vitest module (the `fake-client.test.ts` pattern).
  */
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import type { Component } from 'svelte';
-// @ts-expect-error the client runtime by path: `svelte` resolves to the server build under Vitest (T4 seam).
+// @ts-expect-error the client runtime by path: `svelte` resolves to the server build under Vitest (T5 seam 2).
 import { mount as clientMount, unmount as clientUnmount, flushSync as clientFlush } from '../../../../node_modules/svelte/src/index-client.js';
-import Dialog from './Dialog.svelte';
+import Icon from './Icon.svelte';
 
 /** A mounted component with its root element and a teardown. */
 export interface Mounted {
@@ -70,13 +71,16 @@ export function byLabel(root: ParentNode, label: string): HTMLElement | undefine
   return wrapper?.querySelector<HTMLElement>('input, select, textarea') ?? undefined;
 }
 
-describe('dialog mount helper', () => {
+/** Let pending promise callbacks run, then flush. */
+export async function settle(): Promise<void> {
+  await new Promise((r) => setTimeout(r, 0));
+  clientFlush();
+}
+
+describe('svelte mount helper', () => {
   it('mounts a component for the DOM under jsdom', () => {
-    let closed = 0;
-    const m = mountComponent(Dialog, { open: true, title: 'Probe', onclose: () => { closed += 1; }, children: (() => {}) as never });
-    expect(m.root.querySelector('[role="dialog"]')).not.toBeNull();
-    click(m.root.querySelector('.dialog__close'));
-    expect(closed).toBe(1);
+    const m = mountComponent(Icon, { name: 'check', label: 'Done' });
+    expect(m.root.querySelector('svg[aria-label="Done"]')).not.toBeNull();
     m.unmount();
     expect(document.body.contains(m.root)).toBe(false);
   });

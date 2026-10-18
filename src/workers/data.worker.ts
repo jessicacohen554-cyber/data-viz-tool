@@ -7,8 +7,8 @@
  * `setType` re-parses one column from the retained raw bytes or answers
  * `needsReload` when they were dropped, re-inferring the column's geo role
  * (or re-applying the load's `geoRole` override). Every reply echoes the
- * request id and is posted with `transferablesOf()` plus the v2 `bands`
- * buffers so typed arrays move instead of copy.
+ * request id and is posted with `transferablesOf()` so typed arrays
+ * (the v2 `bands` vectors included) move instead of copy.
  *
  * `createRouter` is the testable core (Node calls it directly); the bottom of
  * the file wires it to the worker scope only when one exists.
@@ -44,22 +44,10 @@ interface State {
   loads: Map<number, AbortController>;
 }
 
-/**
- * Buffers of a reply that `protocol.transferablesOf` (v1, read-only) does not
- * know: the v2 `QueryResult.bands` vectors. Freshly allocated by the engine, so
- * never a duplicate of another listed buffer.
- */
-export function bandBuffersOf(reply: WorkerReply): ArrayBuffer[] {
-  if (reply.type !== 'result' || !reply.result.bands) return [];
-  const out: ArrayBuffer[] = [];
-  for (const b of reply.result.bands) if (b.buffer instanceof ArrayBuffer) out.push(b.buffer);
-  return out;
-}
-
 /** Build a router around a `post` function. State is private to the router. */
 export function createRouter(post: Post): Router {
   const state: State = { store: null, raw: null, maxRows: Infinity, overrides: {}, loads: new Map() };
-  const send = (reply: WorkerReply) => post(reply, transferablesOf(reply).concat(bandBuffersOf(reply)));
+  const send = (reply: WorkerReply) => post(reply, transferablesOf(reply));
   const fail = (id: number, code: ErrorReply['code'], message: string) => send({ id, type: 'error', code, message });
 
   return async (req: WorkerRequest): Promise<void> => {

@@ -4,7 +4,7 @@ import { createDefaultSpec } from '../../core/spec-defaults';
 import { GEO_LAYER_FOR_ROLE, GEO_ROLES } from '../../core/constants';
 import { spec } from '../../stores/spec.svelte';
 import GeoLayerPicker, { GEO_LAYERS, LARGE_LAYER_BYTES, formatBytes, geoLayer, layerWarning } from './GeoLayerPicker.svelte';
-import { byText, click, mountComponent, type Mounted } from '../fields/svelte-mount.test';
+import { byText, click, mountComponent, type Mounted } from '../shared/svelte-mount.test';
 
 describe('geo layer catalog', () => {
   it('lists the shipped layers and covers every area role of GEO_LAYER_FOR_ROLE', () => {

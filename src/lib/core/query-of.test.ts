@@ -80,3 +80,20 @@ describe('queryOf', () => {
     expect(stableStringify({ b: 1, a: { d: [2, { z: 1, y: 2 }], c: null } })).toBe('{"a":{"c":null,"d":[2,{"y":2,"z":1}]},"b":1}');
   });
 });
+
+describe('queryOf percentile bands (v2)', () => {
+  it('emits plan.bands for the named measure (first measure when unknown) and keys on it', () => {
+    const { s, price } = sample();
+    const plain = queryOf(s);
+    expect(plain.bands).toBeUndefined();
+    const banded = queryOf(s, { bands: { levels: [5, 95, 50], measureKey: price.id } });
+    expect(banded.bands).toEqual({ measureKey: price.id, levels: [5, 95, 50] });
+    expect(queryOf(s, { bands: { levels: [25, 75], measureKey: 'not-a-pill' } }).bands?.measureKey).toBe(price.id);
+    expect(queryOf(s, { bands: { levels: [] } }).bands).toBeUndefined();
+    expect(queryKey(banded)).not.toBe(queryKey(plain));
+    expect(queryKey(queryOf(s, { bands: { levels: [25, 75] } }))).not.toBe(queryKey(banded));
+    // Same levels on a renamed pill: same key (ids never leak into the key).
+    const s2 = sample();
+    expect(queryKey(queryOf(s2.s, { bands: { levels: [5, 95, 50], measureKey: s2.price.id } }))).toBe(queryKey(banded));
+  });
+});

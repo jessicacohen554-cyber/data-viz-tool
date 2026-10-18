@@ -6,7 +6,7 @@ import { meta } from '../../core/spec-defaults.test';
 import { spec } from '../../stores/spec.svelte';
 import FieldPanel, { effectiveGeoRole, withGeoRole } from './FieldPanel.svelte';
 import FieldItem, { geoGlyph } from './FieldItem.svelte';
-import { byText, click, mountComponent, type Mounted } from './svelte-mount.test';
+import { byText, click, mountComponent, type Mounted } from '../shared/svelte-mount.test';
 
 /** zone: string with an inferred ERCOT role; county: plain string; lat: number. */
 function fields(): FieldMeta[] {

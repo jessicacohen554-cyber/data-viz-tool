@@ -29,34 +29,15 @@ export const AREA_ROLES: readonly GeoRole[] = ['country', 'us-state', 'us-county
 export type MapMark = NonNullable<VizSpec['marks']['mapMark']>;
 
 /**
- * Name-based geographic role, used only while `FieldMeta.geoRole` is not yet
- * inferred (`undefined`; `null` means "inferred: none" and is respected).
- * Conservative: whole-word matches on common column names. The integrator
- * deletes this once T1's inference writes `geoRole` (rule R-DELETE).
+ * Geographic role of a field: the user's override (`spec.typeOverrides`,
+ * `null` = explicitly none), else the role the worker inferred
+ * (`FieldMeta.geoRole`, TABLEAU-SPEC §1.2), else `null`. Names alone never
+ * imply a role (D-13).
  */
-export function fallbackGeoRole(name: string): GeoRole | null {
-  const n = name.trim().toLowerCase();
-  if (/^(lat|latitude|y_lat)$/.test(n)) return 'latitude';
-  if (/^(lon|lng|long|longitude|x_lon)$/.test(n)) return 'longitude';
-  if (/^(zone|load_zone|ercot_zone|weather_zone|settlement_zone)$/.test(n)) return 'ercot-zone';
-  if (/^(county|county_name|county_fips)$/.test(n)) return 'us-county';
-  if (/^(state|state_code|state_name|us_state|st)$/.test(n)) return 'us-state';
-  if (/^(country|country_code|country_name|nation|iso_a2|iso_a3|iso3|iso2)$/.test(n)) return 'country';
-  return null;
-}
-
-/** Geographic role a user or the inference assigned (override, else `FieldMeta.geoRole`); `undefined` when neither has spoken. */
-export function explicitGeoRole(spec: VizSpec, meta: FieldMeta[], field: string): GeoRole | null | undefined {
+export function geoRoleFor(spec: VizSpec, meta: FieldMeta[], field: string): GeoRole | null {
   const override = spec.typeOverrides[field];
   if (override && 'geoRole' in override) return override.geoRole ?? null;
-  const m = meta.find((f) => f.name === field);
-  return m?.geoRole;
-}
-
-/** Geographic role of a field: the user's override, else the inferred role, else the name fallback. */
-export function geoRoleFor(spec: VizSpec, meta: FieldMeta[], field: string): GeoRole | null {
-  const explicit = explicitGeoRole(spec, meta, field);
-  return explicit === undefined ? fallbackGeoRole(field) : explicit;
+  return meta.find((f) => f.name === field)?.geoRole ?? null;
 }
 
 /** The pills a map draws from. */
@@ -81,12 +62,16 @@ export function geoPills(spec: VizSpec, meta: FieldMeta[]): GeoPills {
   };
 }
 
-/** The layer id a map should draw: the spec's choice, else the layer of the area pill's role. */
+/** Base layer drawn under latitude / longitude marks when no area role and no `spec.geoLayer` choose one (T6; the Marks card overrides it). */
+export const DEFAULT_LATLON_LAYER = 'us-states';
+
+/** The layer id a map should draw: the spec's choice, else the layer of the area pill's role, else `DEFAULT_LATLON_LAYER` for coordinates. */
 export function mapLayerId(spec: VizSpec, meta: FieldMeta[]): string | undefined {
   if (spec.geoLayer) return spec.geoLayer;
-  const { area } = geoPills(spec, meta);
+  const { area, lat, lon } = geoPills(spec, meta);
   const role = area ? geoRoleFor(spec, meta, area.field) : null;
-  return role ? GEO_LAYER_FOR_ROLE[role] : undefined;
+  if (role) return GEO_LAYER_FOR_ROLE[role];
+  return lat && lon ? DEFAULT_LATLON_LAYER : undefined;
 }
 
 /** Show Me reason when a spec cannot drive a map, else `null`. */

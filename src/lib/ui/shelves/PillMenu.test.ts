@@ -5,7 +5,7 @@ import { createDefaultSpec, newPill } from '../../core/spec-defaults';
 import { meta } from '../../core/spec-defaults.test';
 import { spec } from '../../stores/spec.svelte';
 import PillMenu, { FORMAT_PRESETS, applyFormatPreset, axisMeasures, canDualAxis, comboMarkOf, hasSecondary, presetActive } from './PillMenu.svelte';
-import { byText, click, mountComponent, type Mounted } from '../dialogs/mount.test';
+import { byText, click, mountComponent, type Mounted } from '../shared/svelte-mount.test';
 
 const preset = (id: string) => FORMAT_PRESETS.find((p) => p.id === id)!;
 

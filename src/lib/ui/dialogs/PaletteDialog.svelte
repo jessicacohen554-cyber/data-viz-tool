@@ -20,8 +20,9 @@
 
 <script lang="ts">
   /**
-   * Palette dialog (shard S5, D-12): swatch rows grouped by kind from the
-   * registry, showing only the kinds the Color pill can use, with CVD-safe and
+   * Palette dialog (shard S5, D-12; families T3/T6): swatch rows grouped by
+   * family (`PALETTE_FAMILIES`, picker order) and within a family by kind,
+   * showing only the kinds the Color pill can use, with CVD-safe and
    * labels-required badges; diverging switch and midpoint, reverse and domain
    * for continuous color; per-label overrides for categorical color. Every
    * choice is one `spec.patch` on `spec.palette` (mode becomes `manual`);
@@ -29,7 +30,7 @@
    */
   import type { PaletteSelection } from '$core/types';
   import { pillKeyMap } from '$core/query-of';
-  import { PALETTES, type Palette } from '$palette/registry';
+  import { PALETTES, PALETTE_FAMILIES, getPalette, type Palette } from '$palette/registry';
   import { pickPalette } from '$palette/pick';
   import { spec } from '$stores/spec.svelte';
   import { dataset } from '$stores/dataset.svelte';
@@ -48,7 +49,11 @@
   const sel = $derived(spec.value.palette);
   const kinds = $derived(kindsForPill(colorPill));
   const continuous = $derived(colorPill?.continuity === 'continuous');
-  const grouped = $derived(kinds.map((kind) => ({ kind, palettes: PALETTES.filter((p) => p.kind === kind) })));
+  /** Families in picker order, each with only the palettes of the kinds the Color pill can use (empty families dropped). */
+  const grouped = $derived(PALETTE_FAMILIES
+    .map((f) => ({ id: f.id, label: f.label, palettes: f.paletteIds.map(getPalette).filter((p): p is Palette => !!p && kinds.includes(p.kind)) }))
+    .filter((f) => f.palettes.length > 0));
+  const shown = $derived(grouped.reduce((n, f) => n + f.palettes.length, 0));
 
   function selectedId(kind: Palette['kind']): string {
     return sel[kind] ?? defaultPaletteId(kind, spec.value.chartType);
@@ -167,29 +172,30 @@
     <p class="muted">The palette registry is empty (shard S2 fills it); the default Observatory colors apply.</p>
   {/if}
 
-  {#each grouped as group (group.kind)}
-    {#if group.palettes.length > 0}
-      <section class="group">
-        <h3 class="eyebrow">{kindLabel[group.kind]}</h3>
-        <ul class="swatches" role="listbox" aria-label="{kindLabel[group.kind]} palettes">
-          {#each group.palettes as p (p.id)}
-            {@const active = selectedId(p.kind) === p.id}
-            <li>
-              <button type="button" role="option" aria-selected={active} class="swatch" class:swatch--active={active} onclick={() => choose(p)}>
-                <span class="swatch__name">{p.label}</span>
-                <span class="swatch__chips" class:swatch__chips--ramp={p.kind !== 'categorical'} aria-hidden="true">
-                  {#each p.colors as c, i (i)}<span class="chip" style:background={c}></span>{/each}
-                </span>
-                <span class="swatch__badges">
-                  {#if p.colorblindSafe}<span class="badge badge--ok">CVD safe</span>{/if}
-                  {#if p.tags.includes(LABELS_REQUIRED_TAG)}<span class="badge badge--warn">Use with labels</span>{/if}
-                </span>
-              </button>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
+  {#if shown > 0}
+    <p class="muted num">{shown} palettes in {grouped.length} families</p>
+  {/if}
+  {#each grouped as family (family.id)}
+    <section class="group" data-family={family.id}>
+      <h3 class="eyebrow">{family.label}</h3>
+      <ul class="swatches" role="listbox" aria-label="{family.label} palettes">
+        {#each family.palettes as p (p.id)}
+          {@const active = selectedId(p.kind) === p.id}
+          <li>
+            <button type="button" role="option" aria-selected={active} class="swatch" class:swatch--active={active} title="{p.label} · {kindLabel[p.kind]}" onclick={() => choose(p)}>
+              <span class="swatch__name">{p.label} <span class="swatch__kind">{kindLabel[p.kind]}</span></span>
+              <span class="swatch__chips" class:swatch__chips--ramp={p.kind !== 'categorical'} aria-hidden="true">
+                {#each p.colors as c, i (i)}<span class="chip" style:background={c}></span>{/each}
+              </span>
+              <span class="swatch__badges">
+                {#if p.colorblindSafe}<span class="badge badge--ok">CVD safe</span>{/if}
+                {#if p.tags.includes(LABELS_REQUIRED_TAG)}<span class="badge badge--warn">Use with labels</span>{/if}
+              </span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </section>
   {/each}
 
   {#if colorPill && !continuous}
@@ -234,6 +240,7 @@
   .swatch:hover { background: var(--bg-page); }
   .swatch--active { border-color: var(--hydro); box-shadow: 0 0 0 1px var(--hydro); }
   .swatch__name { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
+  .swatch__kind { font-weight: 400; font-size: 0.68rem; color: var(--text-muted); margin-left: var(--space-xs); }
   .swatch__chips { display: flex; gap: 2px; height: var(--space-md); }
   .chip { flex: 1; border-radius: 2px; }
   .swatch__chips--ramp { gap: 0; }

@@ -6,7 +6,7 @@ import { createDefaultSpec, newPill } from '../../core/spec-defaults';
 import { meta } from '../../core/spec-defaults.test';
 import { spec } from '../../stores/spec.svelte';
 import MarksCard, { ENVELOPE_PRESETS, defaultEnvelope, defaultMapMark, hasLevel, isMapChart, suggestedGeoLayer, toggleLevel } from './MarksCard.svelte';
-import { byText, click, flush, mountComponent, setValue, type Mounted } from '../fields/svelte-mount.test';
+import { byText, click, flush, mountComponent, setValue, type Mounted } from '../shared/svelte-mount.test';
 
 function fields(): FieldMeta[] {
   return [{ ...meta('zone', 'string'), geoRole: 'ercot-zone' }, meta('state', 'string'), meta('price', 'number'), meta('lo', 'number'), meta('hi', 'number')];

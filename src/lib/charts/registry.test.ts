@@ -44,3 +44,16 @@ describe('chart registry', () => {
     expect(needsFor(makeSpec('bar', { columns: [dim('zone')], rows: [measure('p')] }))).toEqual({});
   });
 });
+
+describe('needsFor envelope bands (D-15)', () => {
+  it('asks for the percentile bands of the value measure in percentile mode only', () => {
+    const hour = dim('hour'); const p = measure('p', 'avg');
+    const pct = makeSpec('envelope', { columns: [hour], rows: [p] });
+    expect(needsFor(pct)).toEqual({ bands: { levels: [5, 95, 25, 75, 50], measureKey: p.id } });
+    const custom = makeSpec('envelope', { columns: [hour], rows: [p] }, (s) => { s.envelope = { mode: 'percentile', levels: [[10, 90]] }; });
+    expect(needsFor(custom).bands?.levels).toEqual([10, 90, 50]);
+    const cols = makeSpec('envelope', { columns: [hour], rows: [p, measure('q')] }, (s) => { s.envelope = { mode: 'columns', levels: [] }; });
+    expect(needsFor(cols)).toEqual({});
+    expect(needsFor(makeSpec('envelope', { columns: [hour] }))).toEqual({});
+  });
+});

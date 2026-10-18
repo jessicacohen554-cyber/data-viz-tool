@@ -41,6 +41,17 @@ describe('dataset store geo-role glue (T5)', () => {
     expect(store.meta.find((m) => m.name === 'zone')?.geoRole).toBeNull();
   });
 
+  it('setGeoRole after the field menu dropped an override equal to the inferred role writes nothing (T6)', async () => {
+    const { spec, store } = setup();
+    await store.load(entryOf('ercot'), 'u');
+    // The menu chose the inferred role: it removed any override and then notified the store.
+    const before = spec.value;
+    store.setGeoRole('zone', 'ercot-zone');
+    expect(spec.value).toBe(before);
+    expect(spec.value.typeOverrides.zone).toBeUndefined();
+    expect(store.meta.find((m) => m.name === 'zone')?.geoRole).toBe('ercot-zone');
+  });
+
   it('a load applies the restored spec\'s geoRole overrides to meta', async () => {
     const { spec, storage, store } = setup();
     const recent = createDefaultSpec('ercot');

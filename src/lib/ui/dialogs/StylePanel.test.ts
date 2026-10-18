@@ -4,7 +4,7 @@ import { createDefaultSpec, defaultMarks, defaultStyle } from '../../core/spec-d
 import { spec } from '../../stores/spec.svelte';
 import { ui } from '../../stores/ui.svelte';
 import StylePanel, { TRANSPARENT, backgroundSwatches, clampNumber, isDefaultChrome, isHex, setText } from './StylePanel.svelte';
-import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from './mount.test';
+import { byLabel, click, mountComponent, setChecked, setValue, type Mounted } from '../shared/svelte-mount.test';
 
 describe('StylePanel helpers', () => {
   it('validates hex and clamps numbers to a step', () => {

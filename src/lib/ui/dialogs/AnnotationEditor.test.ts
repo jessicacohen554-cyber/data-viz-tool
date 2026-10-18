@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultSpec } from '../../core/spec-defaults';
 import { spec } from '../../stores/spec.svelte';
 import AnnotationEditor, { DEFAULT_OFFSET, OFFSET, describeAnchor, newAnnotation } from './AnnotationEditor.svelte';
-import { byLabel, click, mountComponent, setValue, type Mounted } from './mount.test';
+import { byLabel, click, mountComponent, setValue, type Mounted } from '../shared/svelte-mount.test';
 
 describe('AnnotationEditor helpers', () => {
   it('builds an annotation from an anchor with the default offset and only the anchor fields given', () => {

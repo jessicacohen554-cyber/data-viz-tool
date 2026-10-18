@@ -127,6 +127,46 @@ export const SEQUENTIAL_SPECS: ReadonlyArray<{ id: string; label: string; hue: n
   { id: 'seq-rose', label: 'Rose', hue: 10, anchor: '#E91E63', cMax: 0.14 },
 ];
 
+/**
+ * Single-hue family ramps (§6.2), same construction as §2.1. Neon green uses
+ * `C_max` 0.22: at 0.25 the gamut-clipped L 0.75 stop falls below the 2:1
+ * light-end floor on the page surface.
+ */
+export const FAMILY_SEQUENTIAL_SPECS: ReadonlyArray<{ id: string; label: string; hue: number; cMax: number; family: string }> = [
+  { id: 'seq-earth', label: 'Earth', hue: 55, cMax: 0.10, family: 'earthy' },
+  { id: 'seq-forest', label: 'Forest', hue: 145, cMax: 0.12, family: 'forest' },
+  { id: 'seq-berry', label: 'Berry', hue: 345, cMax: 0.16, family: 'berry' },
+  { id: 'seq-retro', label: 'Retro mustard', hue: 85, cMax: 0.12, family: 'retro' },
+  { id: 'seq-corporate', label: 'Corporate blue', hue: 250, cMax: 0.10, family: 'corporate' },
+  { id: 'seq-muted', label: 'Muted blue', hue: 240, cMax: 0.06, family: 'muted' },
+  { id: 'seq-neon-pink', label: 'Neon pink', hue: 350, cMax: 0.25, family: 'neon' },
+  { id: 'seq-neon-green', label: 'Neon green', hue: 140, cMax: 0.22, family: 'neon' },
+  { id: 'seq-neon-blue', label: 'Neon blue', hue: 240, cMax: 0.25, family: 'neon' },
+];
+
+/**
+ * Generated multi-hue ramp (§6.2): the seven §2.1 lightness stops with the
+ * hue interpolated linearly from `hueLight` (L 0.95) to `hueDark` (L 0.35);
+ * pass `hueDark` outside [0, 360) to choose the direction around the wheel
+ * (e.g. 85 → −60 runs gold → red → purple). Monotone in L by construction.
+ */
+export function makeHueRamp(hueLight: number, hueDark: number, cMax: number, stops: readonly number[] = SEQUENTIAL_STOPS_L): string[] {
+  const last = stops.length - 1;
+  return stops.map((L, i) => {
+    const h = (((hueLight + ((hueDark - hueLight) * i) / last) % 360) + 360) % 360;
+    return oklchToHex(L, rampChroma(L, cMax), h);
+  });
+}
+
+/** Multi-hue family ramps (§6.2): `hueLight` → `hueDark`. */
+export const FAMILY_HUE_RAMP_SPECS: ReadonlyArray<{ id: string; label: string; hueLight: number; hueDark: number; cMax: number; family: string }> = [
+  { id: 'seq-ocean', label: 'Ocean', hueLight: 190, hueDark: 262, cMax: 0.12, family: 'ocean' },
+  { id: 'seq-sunset', label: 'Sunset', hueLight: 85, hueDark: -60, cMax: 0.18, family: 'sunset' },
+  { id: 'seq-candy', label: 'Candy', hueLight: 100, hueDark: 350, cMax: 0.16, family: 'candy' },
+  { id: 'seq-warm', label: 'Warm', hueLight: 90, hueDark: 15, cMax: 0.16, family: 'warm' },
+  { id: 'seq-cool', label: 'Cool', hueLight: 180, hueDark: 300, cMax: 0.14, family: 'cool' },
+];
+
 /** Default sequential palette id (§4). */
 export const DEFAULT_SEQUENTIAL = 'seq-sky';
 
@@ -142,7 +182,10 @@ const MULTI_HUE: ReadonlyArray<{ id: string; label: string; colors: string[]; ex
     colors: ['#e8f3f7', '#7fc4e6', '#86c98f', '#f2d65c', '#ef8f3c', '#c0392b'] },
 ];
 
-/** Every sequential ramp in picker order: generated single-hue first, then multi-hue. */
+/**
+ * Every sequential ramp in picker order: §2.1 single-hue, §2.2 fixed
+ * multi-hue, then the §6.2 family ramps (single-hue, then generated multi-hue).
+ */
 export const SEQUENTIAL_DEFS: readonly RampDef[] = [
   ...SEQUENTIAL_SPECS.map((s): RampDef => ({
     id: s.id, label: s.label, colors: makeRamp(s.hue, s.cMax), hue: `${s.hue}`, tags: ['single-hue'], multiHue: false, exempt: false,
@@ -151,5 +194,12 @@ export const SEQUENTIAL_DEFS: readonly RampDef[] = [
     id: m.id, label: m.label, colors: m.colors, hue: m.hue,
     tags: m.exempt ? ['multi-hue', 'non-monotone', 'parity', 'never-auto'] : ['multi-hue'],
     multiHue: true, exempt: m.exempt,
+  })),
+  ...FAMILY_SEQUENTIAL_SPECS.map((s): RampDef => ({
+    id: s.id, label: s.label, colors: makeRamp(s.hue, s.cMax), hue: `${s.hue}`, tags: ['single-hue', 'generated'], multiHue: false, exempt: false,
+  })),
+  ...FAMILY_HUE_RAMP_SPECS.map((s): RampDef => ({
+    id: s.id, label: s.label, colors: makeHueRamp(s.hueLight, s.hueDark, s.cMax),
+    hue: `${(((s.hueLight % 360) + 360) % 360)}→${(((s.hueDark % 360) + 360) % 360)}`, tags: ['multi-hue', 'generated'], multiHue: true, exempt: false,
   })),
 ];

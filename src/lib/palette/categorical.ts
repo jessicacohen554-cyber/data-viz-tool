@@ -3,6 +3,7 @@
  * (§3, D-10). Hues are fixed lists in fixed order, never cycled; color
  * follows the entity (rule 7 [R-PALETTE]). Framework-free [R-PURE].
  */
+import { FAMILY_CATEGORICAL_DEFS, bandSet } from './families';
 import { hexToOklch, oklchToHex } from './sequential';
 
 /** A categorical set before validation (the registry adds the validation block). */
@@ -48,7 +49,7 @@ function grayscaleSet(): string[] {
   return [0.86, 0.74, 0.62, 0.50, 0.38, 0.25].map((L) => oklchToHex(L, 0, 0));
 }
 
-/** Every categorical set in picker order (§1 table). */
+/** Every categorical set in picker order: the §1 table, then the §6 family sets. */
 export const CATEGORICAL_DEFS: readonly CategoricalDef[] = [
   { id: 'observatory', label: 'Observatory', colors: [...OBSERVATORY_COLORS], labelsRequired: true, tags: ['default', 'entity-colors'] },
   { id: 'observatory-iso', label: 'Observatory ISO', colors: [...OBSERVATORY_ISO_COLORS], labelsRequired: true, tags: ['entity-colors'] },
@@ -60,9 +61,10 @@ export const CATEGORICAL_DEFS: readonly CategoricalDef[] = [
   { id: 'pairs-teal-brown', label: 'Teal / Brown', colors: ['#26A69A', '#92400E'], labelsRequired: false, tags: ['pair', 'complementary'] },
   { id: 'pairs-navy-gold', label: 'Navy / Gold', colors: ['#1A2744', '#EAB308'], labelsRequired: false, tags: ['pair', 'complementary', 'navy-off-band'] },
   { id: 'pairs-purple-lime', label: 'Purple / Lime', colors: ['#9C27B0', '#65A30D'], labelsRequired: false, tags: ['pair', 'complementary'] },
-  { id: 'pastel', label: 'Pastel', colors: ['#F9C56D', '#7ADC9E', '#6EC9F2', '#A1A3F7', '#A5A9B2', '#8B939C', '#F0B27A', '#7DCAC2', '#6FD5B3', '#C08F6E'], labelsRequired: true, tags: ['fills', 'no-thin-lines'] },
+  { id: 'pastel', label: 'Pastel', colors: bandSet(0.85, 0.08), labelsRequired: true, tags: ['pastel', 'generated', 'band', 'fills', 'no-thin-lines'] },
   { id: 'bold', label: 'Bold', colors: boldSet(), labelsRequired: true, tags: ['generated', 'dark-surface'] },
   { id: 'grayscale', label: 'Grayscale', colors: grayscaleSet(), labelsRequired: true, tags: ['generated', 'print'] },
+  ...FAMILY_CATEGORICAL_DEFS,
 ];
 
 // ---------------------------------------------------------------------------

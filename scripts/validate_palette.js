@@ -224,7 +224,10 @@ function printReport({ report, ok }, { mode, surface, ordinal, n }) {
 async function printAll() {
   const { fileURLToPath } = await import('node:url');
   const { dirname, resolve } = await import('node:path');
-  const { runnerImport } = await import('vite');
+  // The browser bundle imports this file through src/lib/palette/validate.ts;
+  // the module id is a variable with @vite-ignore so Vite never bundles itself.
+  const viteModuleId = 'vite';
+  const { runnerImport } = await import(/* @vite-ignore */ viteModuleId);
   // The runner re-evaluates this file (validate.ts imports it); the flag keeps that copy out of the CLI block.
   process.env[ALL_GUARD] = '1';
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
